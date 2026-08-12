@@ -16,16 +16,15 @@ import { useEffect, useState } from "react";
  * the SDK is a singleton so they share the underlying connection.
  */
 export function useFirebaseUser(): { user: User | null; loading: boolean } {
-  const [state, setState] = useState<{ user: User | null; loading: boolean }>({
+  const [state, setState] = useState<{ user: User | null; loading: boolean }>(() => ({
     user: null,
-    loading: true,
-  });
+    // With no Firebase config there is nothing to wait for, so this starts
+    // resolved rather than flipping itself from an effect.
+    loading: isFirebaseConfigured,
+  }));
 
   useEffect(() => {
-    if (!isFirebaseConfigured) {
-      setState({ user: null, loading: false });
-      return;
-    }
+    if (!isFirebaseConfigured) return;
     return onAuthStateChanged(clientAuth(), (user) => setState({ user, loading: false }));
   }, []);
 

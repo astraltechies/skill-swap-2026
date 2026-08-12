@@ -4,6 +4,7 @@ import { BlockButton } from "@/components/safety/block-button";
 import { ReportDialog } from "@/components/safety/report-dialog";
 import { JsonLd } from "@/components/seo/json-ld";
 import { PageContainer } from "@/components/shell/page";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -92,20 +93,35 @@ export default async function PublicProfilePage({ params }: PageProps<"/u/[usern
         ])}
       />
 
-      {/* Signed-out visitors arrive here from search, so this page carries its
-          own header rather than relying on the app shell. */}
-      {!viewer ? (
-        <header className="border-b border-line px-4 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
-            <Link href="/">
-              <Logo />
-            </Link>
-            <Button asChild size="sm">
-              <Link href="/signup">Join Skill Swap</Link>
-            </Button>
+      {/* This page sits outside the app shell — signed-out visitors arrive here
+          straight from search — so it carries its own header. It renders for
+          signed-in viewers too, who would otherwise land on a profile with no
+          navigation and no way back. The page is dynamic, so the viewer is
+          known server-side and the right controls render immediately. */}
+      <header className="border-b border-line px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
+          <Link href={viewer ? "/dashboard" : "/"} className="group">
+            <Logo />
+          </Link>
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            {viewer ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/browse">Browse</Link>
+              </Button>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href="/signup">Join</Link>
+                </Button>
+              </>
+            )}
           </div>
-        </header>
-      ) : null}
+        </div>
+      </header>
 
       <PageContainer>
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start">

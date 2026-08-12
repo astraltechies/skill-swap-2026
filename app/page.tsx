@@ -1,5 +1,7 @@
 import { Logo } from "@/components/brand/logo";
 import { JsonLd } from "@/components/seo/json-ld";
+import { PublicHeaderActions } from "@/components/shell/public-header-actions";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
@@ -44,13 +46,9 @@ export default async function HomePage() {
       <header className="px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <Logo />
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/signup">Join</Link>
-            </Button>
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <PublicHeaderActions />
           </div>
         </div>
       </header>

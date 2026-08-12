@@ -1,6 +1,8 @@
 import { Logo } from "@/components/brand/logo";
 import { JsonLd } from "@/components/seo/json-ld";
 import { PageContainer } from "@/components/shell/page";
+import { PublicHeaderActions } from "@/components/shell/public-header-actions";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
@@ -78,12 +80,13 @@ export default async function CategoryPage({ params }: PageProps<"/skills/[categ
 
       <header className="border-b border-line px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <Link href="/">
+          <Link href="/" className="group">
             <Logo />
           </Link>
-          <Button asChild size="sm">
-            <Link href="/signup">Join Skill Swap</Link>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <PublicHeaderActions />
+          </div>
         </div>
       </header>
 

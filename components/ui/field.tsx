@@ -120,17 +120,36 @@ export function Input({
 export function PasswordInput({
   className,
   invalid,
+  value,
+  onChange,
   ...props
 }: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { invalid?: boolean }) {
   const [visible, setVisible] = useState(false);
+  const [typedSomething, setTypedSomething] = useState(false);
+
+  // Works controlled or not: prefer the value prop when there is one, and fall
+  // back to tracking keystrokes when the field manages itself.
+  const hasText = value !== undefined ? String(value).length > 0 : typedSomething;
+
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (value === undefined) setTypedSomething(event.target.value.length > 0);
+    // Clearing the field re-hides it, so revealing is a fresh decision every
+    // time rather than a setting that quietly persists.
+    if (event.target.value.length === 0) setVisible(false);
+    onChange?.(event);
+  }
 
   return (
     <div className="relative">
       <input
         type={visible ? "text" : "password"}
+        value={value}
+        onChange={handleChange}
         className={cn(
           CONTROL,
-          "h-11 pr-11",
+          "h-11",
+          // Only reserve room for the button while it is actually there.
+          hasText ? "pr-11" : "pr-3.5",
           invalid ? "border-danger focus:border-danger focus:ring-danger/25" : "border-line-strong",
           className,
         )}
@@ -138,28 +157,33 @@ export function PasswordInput({
         {...props}
       />
 
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        // Not in the tab order: keyboard users reaching for the next field
-        // shouldn't have to step over it, and it is reachable by pointer or by
-        // shift-tabbing back. The state is announced either way.
-        tabIndex={-1}
-        aria-pressed={visible}
-        aria-label={visible ? "Hide password" : "Show password"}
-        title={visible ? "Hide password" : "Show password"}
-        className={cn(
-          "absolute right-1 top-1/2 -translate-y-1/2",
-          "flex size-9 items-center justify-center rounded-lg text-muted",
-          "transition-colors duration-(--duration-fast) hover:bg-surface-sunk hover:text-ink",
-        )}
-      >
-        {visible ? (
-          <EyeOff className="size-[18px]" aria-hidden />
-        ) : (
-          <Eye className="size-[18px]" aria-hidden />
-        )}
-      </button>
+      {/* Hidden on an empty field — there is nothing to reveal, and an eye
+          sitting in a blank box just reads as clutter. */}
+      {hasText ? (
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          // Not in the tab order: keyboard users reaching for the next field
+          // shouldn't have to step over it, and it stays reachable by pointer
+          // or by shift-tabbing back.
+          tabIndex={-1}
+          aria-pressed={visible}
+          aria-label={visible ? "Hide password" : "Show password"}
+          title={visible ? "Hide password" : "Show password"}
+          className={cn(
+            "absolute right-1 top-1/2 -translate-y-1/2",
+            "flex size-9 items-center justify-center rounded-lg text-muted",
+            "animate-(--animate-scale-in)",
+            "transition-colors duration-(--duration-fast) hover:bg-surface-sunk hover:text-ink",
+          )}
+        >
+          {visible ? (
+            <EyeOff className="size-[18px]" aria-hidden />
+          ) : (
+            <Eye className="size-[18px]" aria-hidden />
+          )}
+        </button>
+      ) : null}
     </div>
   );
 }

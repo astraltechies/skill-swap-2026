@@ -1,6 +1,6 @@
 import { Logo } from "@/components/brand/logo";
+import { PublicHeaderActions } from "@/components/shell/public-header-actions";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function MarketingLayout({ children }: LayoutProps<"/">) {
@@ -13,9 +13,7 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
           </Link>
           <div className="flex items-center gap-1.5">
             <ThemeToggle />
-            <Button asChild size="sm" variant="outline">
-              <Link href="/signup">Join</Link>
-            </Button>
+            <PublicHeaderActions />
           </div>
         </div>
       </header>
