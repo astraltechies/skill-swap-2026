@@ -21,11 +21,18 @@ const PROTECTED = [
 const AUTH_ONLY = ["/login", "/signup"];
 
 /**
- * `/logout` must stay reachable while a cookie is present — it is the only
- * thing that can clear a cookie that no longer verifies. Bouncing it as
- * "signed-in only" would recreate the redirect loop it exists to break.
+ * Paths that must stay reachable even with a session cookie present.
+ *
+ * `/logout` because it is the only thing that can clear a cookie that no longer
+ * verifies — bouncing it would recreate the redirect loop it exists to break.
+ *
+ * `/signup/complete` because a Google sign-in legitimately has a session but no
+ * profile yet, and that page is where the profile gets created. It also has to
+ * be listed here explicitly: it starts with "/signup", so the AUTH_ONLY prefix
+ * match below would otherwise catch it and send the user to /dashboard, which
+ * finds no profile and bounces them straight back out to /login.
  */
-const ALWAYS_ALLOWED = ["/logout"];
+const ALWAYS_ALLOWED = ["/logout", "/signup/complete"];
 
 /**
  * An optimistic gate, not the authorisation check.

@@ -26,7 +26,9 @@ export function friendlyAuthError(error: unknown): string {
     case "auth/user-not-found":
       return "That email and password don't match. Try again.";
     case "auth/email-already-in-use":
-      return "There's already an account with this email. Try signing in.";
+      // Most often this is someone who already used "Continue with Google" on
+      // this address, so name that path rather than just saying "sign in".
+      return "There's already an account with this email. Sign in instead — with Google if that's how you set it up.";
     case "auth/weak-password":
       return "Pick a password with at least 8 characters.";
     case "auth/invalid-email":
