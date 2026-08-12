@@ -42,3 +42,10 @@ next-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Ad-hoc one-off scripts run from the project root
+/watch-admin.mts
+/chk.mts
+/whois.mts
+/idxcheck.mts
+/cjs-smoke.cjs
