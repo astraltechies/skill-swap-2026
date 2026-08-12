@@ -12,7 +12,7 @@ if (getApps().length === 0) {
 
 const EMAIL = "astral.techies@gmail.com";
 const db = getFirestore();
-const deadline = Date.now() + 20 * 60 * 1000;
+const deadline = Date.now() + 25 * 60 * 1000;
 
 while (Date.now() < deadline) {
   try {
@@ -27,18 +27,15 @@ while (Date.now() < deadline) {
           adminId: "script:make-admin",
           actionType: "promote_admin",
           targetId: user.uid,
-          notes: "Initial admin, promoted by watcher after Google signup",
+          notes: "Initial admin, promoted after Google signup",
           createdAt: Date.now(),
         });
       }
       console.log(`PROMOTED @${data.username} (${data.displayName}) to admin`);
       process.exit(0);
     }
-    console.log("signed in with Google, waiting for the consent step to finish...");
-  } catch {
-    // no account yet
-  }
-  await new Promise((r) => setTimeout(r, 10000));
+  } catch { /* no account yet */ }
+  await new Promise((r) => setTimeout(r, 8000));
 }
-console.log("TIMEOUT: no account appeared in 20 minutes");
+console.log("TIMEOUT: profile never appeared");
 process.exit(1);

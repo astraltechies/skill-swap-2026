@@ -1,8 +1,14 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { AlertCircle } from "lucide-react";
-import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
+import {
+  useId,
+  useState,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from "react";
 
 /**
  * Inputs are 16px on mobile on purpose — anything smaller makes iOS Safari
@@ -100,6 +106,61 @@ export function Input({
       aria-invalid={invalid || undefined}
       {...props}
     />
+  );
+}
+
+/**
+ * A password field with a show/hide toggle.
+ *
+ * Typing a password blind on a phone keyboard is where most sign-in attempts
+ * go wrong, so being able to check what you typed matters more here than the
+ * shoulder-surfing risk it trades away — which is why browsers ship this too.
+ * Starts hidden; revealing is always a deliberate act.
+ */
+export function PasswordInput({
+  className,
+  invalid,
+  ...props
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type"> & { invalid?: boolean }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <div className="relative">
+      <input
+        type={visible ? "text" : "password"}
+        className={cn(
+          CONTROL,
+          "h-11 pr-11",
+          invalid ? "border-danger focus:border-danger focus:ring-danger/25" : "border-line-strong",
+          className,
+        )}
+        aria-invalid={invalid || undefined}
+        {...props}
+      />
+
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        // Not in the tab order: keyboard users reaching for the next field
+        // shouldn't have to step over it, and it is reachable by pointer or by
+        // shift-tabbing back. The state is announced either way.
+        tabIndex={-1}
+        aria-pressed={visible}
+        aria-label={visible ? "Hide password" : "Show password"}
+        title={visible ? "Hide password" : "Show password"}
+        className={cn(
+          "absolute right-1 top-1/2 -translate-y-1/2",
+          "flex size-9 items-center justify-center rounded-lg text-muted",
+          "transition-colors duration-(--duration-fast) hover:bg-surface-sunk hover:text-ink",
+        )}
+      >
+        {visible ? (
+          <EyeOff className="size-[18px]" aria-hidden />
+        ) : (
+          <Eye className="size-[18px]" aria-hidden />
+        )}
+      </button>
+    </div>
   );
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, Input } from "@/components/ui/field";
+import { Field, FieldError, Input, PasswordInput } from "@/components/ui/field";
 import {
   clearClientAuth,
   completeGoogleRedirect,
@@ -119,9 +119,8 @@ export function LoginForm() {
 
         <Field label="Password">
           {(id) => (
-            <Input
+            <PasswordInput
               id={id}
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"

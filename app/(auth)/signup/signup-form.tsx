@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox, Field, FieldError, Input } from "@/components/ui/field";
+import { Checkbox, Field, FieldError, Input, PasswordInput } from "@/components/ui/field";
 import { friendlyAuthError, signUpWithEmail } from "@/lib/auth/actions";
 import { MIN_AGE } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -199,9 +199,8 @@ export function SignupForm() {
 
             <Field label="Password" error={errors.password} help="At least 8 characters.">
               {(id, describedBy) => (
-                <Input
+                <PasswordInput
                   id={id}
-                  type="password"
                   aria-describedby={describedBy}
                   value={values.password}
                   onChange={set("password")}
