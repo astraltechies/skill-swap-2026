@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import type { UserProfile } from "@/types/firestore";
 import { Coins } from "lucide-react";
@@ -15,10 +16,12 @@ export function TopBar({ user }: { user: UserProfile }) {
         <Logo showWordmark={false} className="scale-110" />
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
+        <ThemeToggle />
+
         <Link
           href="/wallet"
-          className="flex items-center gap-1.5 rounded-full border border-teach/30 bg-teach-wash px-3 py-1.5"
+          className="pressable flex items-center gap-1.5 rounded-full border border-teach/30 bg-teach-wash px-3 py-1.5 transition-colors duration-(--duration-fast) hover:border-teach/60"
         >
           <Coins className="size-4 text-teach-ink" aria-hidden />
           <span className="tabular text-sm font-semibold text-teach-ink">
@@ -27,7 +30,7 @@ export function TopBar({ user }: { user: UserProfile }) {
           <span className="sr-only">SkillCoins</span>
         </Link>
 
-        <Link href="/profile" aria-label="Your profile">
+        <Link href="/profile" aria-label="Your profile" className="pressable">
           <Avatar name={user.displayName} src={user.photoURL} size="sm" />
         </Link>
       </div>

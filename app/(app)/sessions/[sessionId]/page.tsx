@@ -25,8 +25,15 @@ const LATE_MS = 1000 * 60 * 90;
 
 export default async function SessionPage({ params }: PageProps<"/sessions/[sessionId]">) {
   const { sessionId } = await params;
-  const me = await requireUser();
-  const session = await getSessionById(sessionId);
+
+  // Identity and the session document are independent lookups — fetching the
+  // session only after the user resolved added a whole round trip. The
+  // authorisation check below is unchanged; it just happens a beat earlier.
+  const [me, session, skillsById] = await Promise.all([
+    requireUser(),
+    getSessionById(sessionId),
+    getSkillsMap(),
+  ]);
 
   if (!session) notFound();
 
@@ -36,9 +43,8 @@ export default async function SessionPage({ params }: PageProps<"/sessions/[sess
   const viewerIsTeacher = session.teacherId === me.uid;
   const otherId = viewerIsTeacher ? session.learnerId : session.teacherId;
 
-  const [other, skillsById, existingRating] = await Promise.all([
+  const [other, existingRating] = await Promise.all([
     getUserById(otherId),
-    getSkillsMap(),
     adminDb()
       .collection(COLLECTIONS.ratings)
       .doc(`${session.id}_${me.uid}`)

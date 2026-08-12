@@ -17,11 +17,9 @@ export const metadata: Metadata = {
 const OPEN_STATUSES: Session["status"][] = ["requested", "accepted"];
 
 export default async function SessionsPage() {
-  const me = await requireUser();
-  const [sessions, skillsById] = await Promise.all([
-    getSessionsForUser(me.uid),
-    getSkillsMap(),
-  ]);
+  // The catalogue doesn't depend on identity, so it starts straight away.
+  const [me, skillsById] = await Promise.all([requireUser(), getSkillsMap()]);
+  const sessions = await getSessionsForUser(me.uid);
 
   const others = await getUsersByIds(
     sessions.map((s) => (s.teacherId === me.uid ? s.learnerId : s.teacherId)),

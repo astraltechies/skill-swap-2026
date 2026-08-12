@@ -3,9 +3,11 @@
 import { clientAuth } from "@/lib/firebase/client";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   updateProfile,
   type User,
@@ -36,9 +38,32 @@ export function friendlyAuthError(error: unknown): string {
       return "Sign-in was cancelled.";
     case "auth/network-request-failed":
       return "Check your internet connection and try again.";
+    // These three are configuration faults, not user mistakes. They used to
+    // fall through to the generic message, which hid the actual cause and made
+    // a five-minute console fix look like a broken app.
+    case "auth/unauthorized-domain":
+      return "This site isn't authorised for Google sign-in yet. Add its domain under Firebase Authentication → Settings → Authorized domains.";
+    case "auth/operation-not-allowed":
+      return "Google sign-in isn't switched on for this project. Enable it under Firebase Authentication → Sign-in method.";
+    case "auth/account-exists-with-different-credential":
+      return "You already have an account with this email. Sign in with your password instead.";
     default:
       return "Could not sign you in. Try again.";
   }
+}
+
+/**
+ * Popups are unreliable on mobile browsers — in-app webviews and iOS Safari
+ * block them outright — and this app is used mostly on phones. These are the
+ * codes that mean "the popup never opened", as opposed to "the user closed it".
+ */
+function popupUnavailable(error: unknown): boolean {
+  const code = (error as { code?: string })?.code ?? "";
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/operation-not-supported-in-this-environment" ||
+    code === "auth/web-storage-unsupported"
+  );
 }
 
 /** Swaps the ID token for the httpOnly session cookie the server trusts. */
@@ -77,17 +102,54 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return credential.user;
 }
 
-export async function signInWithGoogle(): Promise<User> {
+/**
+ * Returns the signed-in user, or `null` when the browser could not open a
+ * popup and we've handed off to a full-page redirect instead — in that case
+ * the page is already navigating away and `completeGoogleRedirect()` picks the
+ * result up on the way back.
+ */
+export async function signInWithGoogle(): Promise<User | null> {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  const credential = await signInWithPopup(clientAuth(), provider);
-  await establishSession(credential.user);
-  return credential.user;
+
+  try {
+    const credential = await signInWithPopup(clientAuth(), provider);
+    await establishSession(credential.user);
+    return credential.user;
+  } catch (error) {
+    if (!popupUnavailable(error)) throw error;
+    await signInWithRedirect(clientAuth(), provider);
+    return null;
+  }
+}
+
+/**
+ * Call once on mount. Resolves to the user when the page has just come back
+ * from a Google redirect, and `null` on an ordinary page load.
+ */
+export async function completeGoogleRedirect(): Promise<User | null> {
+  const result = await getRedirectResult(clientAuth());
+  if (!result) return null;
+  await establishSession(result.user);
+  return result.user;
 }
 
 export async function signOut(): Promise<void> {
   await fetch("/api/auth/session", { method: "DELETE" });
   await firebaseSignOut(clientAuth());
+}
+
+/**
+ * Drops the client SDK's own copy of the session. Used after the server has
+ * already cleared the cookie (via /logout), so the two don't disagree about
+ * who is signed in.
+ */
+export async function clearClientAuth(): Promise<void> {
+  try {
+    await firebaseSignOut(clientAuth());
+  } catch {
+    // Nothing to clear, or Firebase isn't configured. Either is fine here.
+  }
 }
 
 /** Whether this identity already has a profile, or still needs the consent step. */

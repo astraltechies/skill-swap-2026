@@ -72,10 +72,13 @@ export function Field({ label, hint, error, help, children }: FieldProps) {
           {help}
         </p>
       ) : null}
+      {/* A div, not a p: FieldError renders its own <p role="alert">, and a
+          nested paragraph gets auto-closed by the parser — which left this id
+          on an empty element and silently broke aria-describedby everywhere. */}
       {error ? (
-        <p id={errorId}>
+        <div id={errorId}>
           <FieldError>{error}</FieldError>
-        </p>
+        </div>
       ) : null}
     </div>
   );

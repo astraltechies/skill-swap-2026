@@ -13,16 +13,17 @@ export const metadata: Metadata = {
 };
 
 export default async function BrowsePage({ searchParams }: PageProps<"/browse">) {
-  // The blocklist query needs the uid, so identity resolves before the rest.
-  const me = await requireUser();
-
-  const [skillsById, categories, everyone, blocked, params] = await Promise.all([
+  // Only the blocklist needs the uid, so everything else starts immediately
+  // rather than queuing behind the identity check.
+  const [me, skillsById, categories, everyone, params] = await Promise.all([
+    requireUser(),
     getSkillsMap(),
     getCategories(),
     getTeachingUsers(),
-    getBlockedIds(me.uid),
     searchParams,
   ]);
+
+  const blocked = await getBlockedIds(me.uid);
 
   const categoryId = typeof params.category === "string" ? params.category : "";
   const query = typeof params.q === "string" ? params.q.trim().toLowerCase() : "";

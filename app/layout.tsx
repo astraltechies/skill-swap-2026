@@ -46,18 +46,37 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf9f6" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0e13" },
-  ],
+  // Light is the default on every device now, so the browser chrome matches
+  // the page ground rather than tracking the OS setting the app ignores.
+  themeColor: "#faf9f6",
 };
+
+/**
+ * Applies a saved theme before the first paint.
+ *
+ * Light is the default, so this only has to act for someone who has chosen
+ * dark — without it they would see a white flash on every navigation while
+ * React hydrated. Deliberately tiny and synchronous, and wrapped in try/catch
+ * because Safari throws on localStorage in private mode.
+ */
+const themeScript = `
+try {
+  var t = localStorage.getItem("skillswap-theme");
+  if (t === "dark") document.documentElement.dataset.theme = "dark";
+} catch (e) {}
+`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${bricolage.variable} ${instrument.variable} ${jetbrains.variable} h-full antialiased`}
+      // The inline script writes data-theme before React sees the document.
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

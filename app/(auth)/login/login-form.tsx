@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, Input } from "@/components/ui/field";
 import {
+  clearClientAuth,
+  completeGoogleRedirect,
   friendlyAuthError,
   hasProfile,
   signInWithEmail,
@@ -10,12 +12,13 @@ import {
 } from "@/lib/auth/actions";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/dashboard";
+  const sessionExpired = searchParams.get("expired") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,6 +30,31 @@ export function LoginForm() {
     router.push((await hasProfile()) ? next : "/signup/complete");
     router.refresh();
   }
+
+  // Picks up a Google sign-in that had to fall back to a full-page redirect
+  // because the browser blocked the popup. On an ordinary load this resolves
+  // to null and does nothing.
+  useEffect(() => {
+    let cancelled = false;
+    completeGoogleRedirect()
+      .then((user) => {
+        if (user && !cancelled) {
+          setPending("google");
+          return routeAfterSignIn();
+        }
+        // Arriving here from /logout means the server session is gone, but the
+        // client SDK still holds its own copy in IndexedDB. Clear it so the two
+        // don't disagree about who is signed in.
+        if (!user && sessionExpired) void clearClientAuth();
+      })
+      .catch((err) => {
+        if (!cancelled) setError(friendlyAuthError(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleEmail(event: React.FormEvent) {
     event.preventDefault();
@@ -45,8 +73,10 @@ export function LoginForm() {
     setError("");
     setPending("google");
     try {
-      await signInWithGoogle();
-      await routeAfterSignIn();
+      const user = await signInWithGoogle();
+      // `null` means the popup was blocked and a full-page redirect is now in
+      // flight — leave the spinner up rather than routing, the page is leaving.
+      if (user) await routeAfterSignIn();
     } catch (err) {
       setError(friendlyAuthError(err));
       setPending(null);
@@ -61,6 +91,15 @@ export function LoginForm() {
       <p className="mt-1.5 text-sm text-muted">
         Sign in to pick up your sessions and messages.
       </p>
+
+      {sessionExpired ? (
+        <p
+          className="mt-4 rounded-xl border border-line bg-surface-sunk px-3.5 py-3 text-sm text-ink-soft"
+          role="status"
+        >
+          You were signed out. Sign in again to carry on.
+        </p>
+      ) : null}
 
       <form onSubmit={handleEmail} noValidate className="mt-6 space-y-4">
         <Field label="Email">

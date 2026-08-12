@@ -18,7 +18,41 @@ import { cache } from "react";
  * components all needing the skill catalogue reads Firestore once.
  */
 
-export const getSkills = cache(async (): Promise<Skill[]> => {
+/**
+ * The skill catalogue and categories are reference data: they change when an
+ * admin edits them, which is roughly never, yet every dynamic page was
+ * re-reading all 33 skill documents on every single request. React's `cache()`
+ * only dedupes *within* one request, so it never helped here.
+ *
+ * This holds the result on the server instance for a few minutes. Worst case
+ * after an admin edit is a short window where some instances still serve the
+ * previous catalogue, which is an acceptable trade for removing two Firestore
+ * round-trips from every page load.
+ */
+const REFERENCE_TTL_MS = 5 * 60 * 1000;
+
+function withTtl<T>(load: () => Promise<T>): () => Promise<T> {
+  let value: T | null = null;
+  let loadedAt = 0;
+  let inflight: Promise<T> | null = null;
+
+  return async () => {
+    if (value !== null && Date.now() - loadedAt < REFERENCE_TTL_MS) return value;
+    // Share one request across concurrent callers instead of stampeding.
+    inflight ??= load()
+      .then((result) => {
+        value = result;
+        loadedAt = Date.now();
+        return result;
+      })
+      .finally(() => {
+        inflight = null;
+      });
+    return inflight;
+  };
+}
+
+export const getSkills = withTtl(async (): Promise<Skill[]> => {
   if (!isAdminConfigured) return [];
   const snap = await adminDb().collection(COLLECTIONS.skills).get();
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Skill);
@@ -29,7 +63,7 @@ export const getSkillsMap = cache(async (): Promise<Map<string, Skill>> => {
   return new Map(skills.map((s) => [s.id, s]));
 });
 
-export const getCategories = cache(async (): Promise<SkillCategory[]> => {
+export const getCategories = withTtl(async (): Promise<SkillCategory[]> => {
   if (!isAdminConfigured) return [];
   const snap = await adminDb().collection(COLLECTIONS.skillCategories).orderBy("order").get();
   return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as SkillCategory);
@@ -82,33 +116,74 @@ export const getUsersByIds = cache(async (uids: string[]): Promise<Map<string, U
   return map;
 });
 
-/** Active students who teach at least one thing — the browse and match pool. */
-export const getTeachingUsers = cache(async (limit = 200): Promise<UserProfile[]> => {
+/**
+ * Active students who teach at least one thing — the browse and match pool.
+ *
+ * Filters on `isTeaching` in Firestore rather than pulling everyone and
+ * filtering here. The old version applied `limit` *before* the in-memory
+ * filter and had no `orderBy`, so past 200 users it silently served whichever
+ * 200 document IDs sorted first alphabetically — the same ones forever.
+ */
+export const getTeachingUsers = cache(async (limit = 120): Promise<UserProfile[]> => {
   if (!isAdminConfigured) return [];
   const snap = await adminDb()
     .collection(COLLECTIONS.users)
     .where("status", "==", "active")
+    .where("isTeaching", "==", true)
+    .orderBy("updatedAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => d.data() as UserProfile);
+});
+
+/**
+ * Top teachers, ranked in Firestore. The leaderboard used to reuse the browse
+ * pool and sort 200 documents in memory to show 50.
+ */
+export const getTopTeachers = cache(async (limit = 50): Promise<UserProfile[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection(COLLECTIONS.users)
+    .where("status", "==", "active")
+    .orderBy("sessionsTaught", "desc")
     .limit(limit)
     .get();
   return snap.docs
     .map((d) => d.data() as UserProfile)
-    .filter((u) => u.skillsTeach.length > 0);
+    .filter((u) => u.sessionsTaught > 0);
 });
 
-export const getSessionsForUser = cache(async (uid: string): Promise<Session[]> => {
-  if (!isAdminConfigured) return [];
-  const db = adminDb();
-  const [asTeacher, asLearner] = await Promise.all([
-    db.collection(COLLECTIONS.sessions).where("teacherId", "==", uid).get(),
-    db.collection(COLLECTIONS.sessions).where("learnerId", "==", uid).get(),
-  ]);
+/**
+ * Recent sessions for a user. Bounded and ordered in Firestore — this used to
+ * read a user's entire history, in both directions, so the dashboard could
+ * display three rows.
+ */
+export const getSessionsForUser = cache(
+  async (uid: string, limit = 60): Promise<Session[]> => {
+    if (!isAdminConfigured) return [];
+    const db = adminDb();
+    const [asTeacher, asLearner] = await Promise.all([
+      db
+        .collection(COLLECTIONS.sessions)
+        .where("teacherId", "==", uid)
+        .orderBy("scheduledAt", "desc")
+        .limit(limit)
+        .get(),
+      db
+        .collection(COLLECTIONS.sessions)
+        .where("learnerId", "==", uid)
+        .orderBy("scheduledAt", "desc")
+        .limit(limit)
+        .get(),
+    ]);
 
-  const seen = new Map<string, Session>();
-  for (const doc of [...asTeacher.docs, ...asLearner.docs]) {
-    seen.set(doc.id, { ...doc.data(), id: doc.id } as Session);
-  }
-  return [...seen.values()].sort((a, b) => b.scheduledAt - a.scheduledAt);
-});
+    const seen = new Map<string, Session>();
+    for (const doc of [...asTeacher.docs, ...asLearner.docs]) {
+      seen.set(doc.id, { ...doc.data(), id: doc.id } as Session);
+    }
+    return [...seen.values()].sort((a, b) => b.scheduledAt - a.scheduledAt);
+  },
+);
 
 export const getSessionById = cache(async (sessionId: string): Promise<Session | null> => {
   if (!isAdminConfigured) return null;

@@ -25,10 +25,14 @@ export const metadata: Metadata = {
 export default async function DashboardPage() {
   const me = await requireUser();
 
-  const [skillsById, sessions, blocked] = await Promise.all([
+  // One wave, not two: the candidate pool doesn't depend on this user's
+  // sessions or blocklist, so fetching it separately below only added a round
+  // trip to the critical path.
+  const [skillsById, sessions, blocked, candidates] = await Promise.all([
     getSkillsMap(),
     getSessionsForUser(me.uid),
     getBlockedIds(me.uid),
+    getTeachingUsers(),
   ]);
 
   // Server Component: this renders once per request, so reading the clock here
@@ -42,7 +46,6 @@ export default async function DashboardPage() {
     .sort((a, b) => a.scheduledAt - b.scheduledAt)
     .slice(0, 3);
 
-  const candidates = await getTeachingUsers();
   const matches = findMatches(me, candidates, { limit: 4, excludeUids: blocked });
 
   const otherIds = [

@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/logo";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -7,12 +8,15 @@ export default function MarketingLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line px-4 py-4 sm:px-6">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
-          <Link href="/">
+          <Link href="/" className="group">
             <Logo />
           </Link>
-          <Button asChild size="sm" variant="outline">
-            <Link href="/signup">Join</Link>
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <Button asChild size="sm" variant="outline">
+              <Link href="/signup">Join</Link>
+            </Button>
+          </div>
         </div>
       </header>
 

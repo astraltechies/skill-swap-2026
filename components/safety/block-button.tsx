@@ -1,6 +1,6 @@
 "use client";
 
-import { useFirebaseUser } from "@/components/providers/auth-provider";
+import { useFirebaseUser } from "@/hooks/use-firebase-user";
 import { Button } from "@/components/ui/button";
 import { clientDb } from "@/lib/firebase/client";
 import { deleteDoc, doc, setDoc } from "firebase/firestore";

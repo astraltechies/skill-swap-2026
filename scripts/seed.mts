@@ -273,6 +273,7 @@ async function seedDemo(db: FirebaseFirestore.Firestore, auth: ReturnType<typeof
         },
         skillsTeach: student.teach.map(([skillId, level]) => ({ skillId, level })),
         skillsLearn: student.learn.map((skillId) => ({ skillId, level: "beginner" })),
+        isTeaching: student.teach.length > 0,
         availability: [
           { day: 6, start: "10:00", end: "13:00" },
           { day: 0, start: "16:00", end: "19:00" },

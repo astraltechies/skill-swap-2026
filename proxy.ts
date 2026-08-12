@@ -12,11 +12,20 @@ const PROTECTED = [
   "/chat",
   "/wallet",
   "/skillbot",
+  "/leaderboard",
+  "/notifications",
   "/admin",
 ];
 
 /** Signed-in users get bounced away from these. */
 const AUTH_ONLY = ["/login", "/signup"];
+
+/**
+ * `/logout` must stay reachable while a cookie is present — it is the only
+ * thing that can clear a cookie that no longer verifies. Bouncing it as
+ * "signed-in only" would recreate the redirect loop it exists to break.
+ */
+const ALWAYS_ALLOWED = ["/logout"];
 
 /**
  * An optimistic gate, not the authorisation check.
@@ -31,6 +40,10 @@ const AUTH_ONLY = ["/login", "/signup"];
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = request.cookies.has(SESSION_COOKIE);
+
+  if (ALWAYS_ALLOWED.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
 
   if (!hasSession && PROTECTED.some((p) => pathname.startsWith(p))) {
     const login = new URL("/login", request.url);

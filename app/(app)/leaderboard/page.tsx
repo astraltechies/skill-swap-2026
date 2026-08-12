@@ -2,7 +2,7 @@ import { PageContainer, PageHeader } from "@/components/shell/page";
 import { Avatar } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/ui/card";
 import { requireUser } from "@/lib/firebase/admin";
-import { getTeachingUsers } from "@/lib/queries";
+import { getTopTeachers } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { Star, Trophy } from "lucide-react";
 import type { Metadata } from "next";
@@ -16,11 +16,13 @@ export const metadata: Metadata = {
 const MEDAL = ["text-teach-ink bg-teach-wash", "text-ink-soft bg-surface-sunk", "text-teach-ink bg-teach-wash/60"];
 
 export default async function LeaderboardPage() {
-  const me = await requireUser();
-  const teachers = (await getTeachingUsers())
-    .filter((u) => u.sessionsTaught > 0)
-    .sort((a, b) => b.sessionsTaught - a.sessionsTaught || b.ratingAvg - a.ratingAvg)
-    .slice(0, 50);
+  // Independent queries — the ranking doesn't depend on who is viewing it.
+  const [me, ranked] = await Promise.all([requireUser(), getTopTeachers(50)]);
+
+  // Firestore has already ordered by sessionsTaught; rating only breaks ties.
+  const teachers = [...ranked].sort(
+    (a, b) => b.sessionsTaught - a.sessionsTaught || b.ratingAvg - a.ratingAvg,
+  );
 
   const myRank = teachers.findIndex((t) => t.uid === me.uid);
 

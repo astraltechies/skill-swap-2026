@@ -15,12 +15,14 @@ export const metadata: Metadata = {
 };
 
 export default async function MatchesPage() {
-  const me = await requireUser();
-  const [skillsById, candidates, blocked] = await Promise.all([
+  // Only the blocklist needs the uid; the catalogue and candidate pool don't.
+  const [me, skillsById, candidates] = await Promise.all([
+    requireUser(),
     getSkillsMap(),
     getTeachingUsers(),
-    getBlockedIds(me.uid),
   ]);
+
+  const blocked = await getBlockedIds(me.uid);
 
   const matches = findMatches(me, candidates, { limit: 30, excludeUids: blocked });
   const others = await getUsersByIds(matches.map((m) => m.otherUid));

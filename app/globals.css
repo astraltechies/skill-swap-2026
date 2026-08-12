@@ -45,38 +45,13 @@
   --elev-lg: 0 12px 32px rgb(20 20 26 / 0.1), 0 2px 8px rgb(20 20 26 / 0.05);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #0e0e13;
-    --surface: #17171f;
-    --surface-sunk: #101017;
-    --ink: #f3f2ef;
-    --ink-soft: #c2c1bd;
-    --muted: #8e8e99;
-    --line: #292933;
-    --line-strong: #3a3a47;
-
-    --teach: #f5a524;
-    --teach-strong: #ffb949;
-    --teach-ink: #ffd699;
-    --teach-wash: #2a1e08;
-
-    --learn: #6d7aff;
-    --learn-strong: #8b95ff;
-    --learn-ink: #c3c9ff;
-    --learn-wash: #16182f;
-
-    --danger: #f0595e;
-    --danger-wash: #2c1315;
-    --success: #3fbf7f;
-    --success-wash: #0f2419;
-
-    --elev-sm: 0 1px 2px rgb(0 0 0 / 0.3);
-    --elev-md: 0 2px 8px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
-    --elev-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.4);
-  }
-}
-
+/**
+ * Light is the default on every device, whatever the OS is set to, and the
+ * only thing that changes it is the toggle. Following `prefers-color-scheme`
+ * used to force a dark site on anyone whose phone was in dark mode — with no
+ * way back, because the toggle these `[data-theme]` hooks were written for
+ * did not exist yet.
+ */
 [data-theme="dark"] {
   --paper: #0e0e13;
   --surface: #17171f;
@@ -139,6 +114,69 @@
   --shadow-sm: var(--elev-sm);
   --shadow-md: var(--elev-md);
   --shadow-lg: var(--elev-lg);
+
+  /* ---- Motion ------------------------------------------------------------
+     Four durations and three curves, so timing is a decision made once here
+     rather than guessed per component. Everything below is suppressed by the
+     prefers-reduced-motion block at the end of this file.                    */
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1); /* leaving, revealing */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* overshoot: adds, awards */
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1); /* symmetric: sliding */
+
+  --duration-instant: 100ms; /* press feedback — must beat perception */
+  --duration-fast: 160ms; /* hover, colour */
+  --duration-base: 240ms; /* entrances, sheets */
+  --duration-slow: 400ms; /* section reveals */
+
+  --animate-fade-up: fade-up var(--duration-base) var(--ease-out-quart) both;
+  --animate-scale-in: scale-in var(--duration-fast) var(--ease-spring) both;
+  --animate-sheet-up: sheet-up var(--duration-base) var(--ease-out-quart) both;
+  --animate-shimmer: shimmer 1.4s linear infinite;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Sweeps a highlight across a skeleton. Travels 200% so the gradient clears
+   the element completely before repeating. */
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
 }
 
 @layer base {
@@ -157,7 +195,9 @@
     color: var(--ink);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04";
-    text-rendering: optimizeLegibility;
+    /* `text-rendering: optimizeLegibility` was here and has been removed: it
+       forces kerning and ligature work across the whole document and measurably
+       delays first paint on the low-end Android phones most students use. */
   }
 
   h1,
@@ -181,7 +221,9 @@
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
-    border-radius: var(--radius-sm);
+    /* Inherit rather than a fixed radius, so the ring follows the shape it is
+       wrapping — a pill stays round, a card stays soft-cornered. */
+    border-radius: inherit;
   }
 
   /* Never remove focus rings — keyboard users need them. This only
@@ -219,6 +261,22 @@
     display: none;
   }
 
+  /**
+   * Press feedback for anything tappable that isn't a Button.
+   *
+   * `-webkit-tap-highlight-color: transparent` above removes Android's only
+   * built-in touch response, and until now only Button replaced it — so
+   * tapping a card, a nav item or a list row gave no signal at all that the
+   * tap had registered. This is that signal.
+   */
+  .pressable {
+    transition: transform var(--duration-instant) var(--ease-out-quart);
+  }
+
+  .pressable:active {
+    transform: scale(0.985);
+  }
+
   /* The signature: a card seamed down the middle, amber above the seam
      (what they teach), indigo below (what they want to learn). */
   .swap-seam {
@@ -234,6 +292,10 @@
 
   .swap-notch {
     position: relative;
+    /* Overridable per placement. Defaults to the page ground, but a card sitting
+       on a sunk or surface background sets this instead — the notches used to
+       hardcode --paper and showed as two wrong-coloured dots anywhere else. */
+    --notch-bg: var(--paper);
   }
 
   /* Two half-circles bitten out of the card edges at the seam, so a pair
@@ -245,9 +307,10 @@
     width: 16px;
     height: 16px;
     border-radius: 9999px;
-    background: var(--paper);
+    background: var(--notch-bg);
     top: 50%;
     transform: translateY(-50%);
+    transition: transform var(--duration-base) var(--ease-out-quart);
   }
 
   .swap-notch::before {
@@ -256,6 +319,16 @@
 
   .swap-notch::after {
     right: -8px;
+  }
+
+  /* On hover the two bites pull outward, so the card reads as two halves
+     about to come apart — the swap, stated by the object itself. */
+  .group:hover .swap-notch::before {
+    transform: translateY(-50%) translateX(-2px);
+  }
+
+  .group:hover .swap-notch::after {
+    transform: translateY(-50%) translateX(2px);
   }
 }
 

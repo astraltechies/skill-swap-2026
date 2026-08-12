@@ -58,6 +58,16 @@ export interface UserProfile {
   skillsLearn: SkillRef[];
   availability: AvailabilityWindow[];
 
+  /**
+   * Mirrors `skillsTeach.length > 0`.
+   *
+   * Firestore cannot query for a non-empty array, so without this the browse
+   * and match queries had to over-fetch and filter in memory — which meant the
+   * `limit` was applied *before* the filter and the site silently showed an
+   * arbitrary fixed subset of students. Written wherever `skillsTeach` is.
+   */
+  isTeaching: boolean;
+
   /** Server-controlled. Clients can never write these — see firestore.rules. */
   coinBalance: number;
   ratingAvg: number;

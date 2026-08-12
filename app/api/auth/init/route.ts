@@ -57,6 +57,7 @@ export async function POST(request: Request) {
         skillsTeach: [],
         skillsLearn: [],
         availability: [],
+        isTeaching: false,
         coinBalance: 0,
         ratingAvg: 0,
         ratingCount: 0,

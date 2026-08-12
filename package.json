@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "node --env-file=.env.local scripts/seed.mts",
     "seed:demo": "node --env-file=.env.local scripts/seed.mts --demo",
+    "backfill": "node --env-file=.env.local scripts/backfill.mts",
     "rules:deploy": "firebase deploy --only firestore:rules,firestore:indexes",
     "emulators": "firebase emulators:start"
   },

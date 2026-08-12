@@ -60,14 +60,20 @@ export async function generateMetadata({
 
 export default async function PublicProfilePage({ params }: PageProps<"/u/[username]">) {
   const { username } = await params;
-  const user = await getUserByUsername(username);
+
+  // Who is being viewed, who is viewing, and the catalogue are three unrelated
+  // lookups — resolving the profile first made the other two wait on it.
+  const [user, viewer, skillsById] = await Promise.all([
+    getUserByUsername(username),
+    getCurrentUser(),
+    getSkillsMap(),
+  ]);
+
   if (!user) notFound();
 
-  const [skillsById, ratings, badgeIds, viewer] = await Promise.all([
-    getSkillsMap(),
+  const [ratings, badgeIds] = await Promise.all([
     getRatingsFor(user.uid),
     getAwardedBadges(user.uid),
-    getCurrentUser(),
   ]);
 
   const isOwnProfile = viewer?.uid === user.uid;

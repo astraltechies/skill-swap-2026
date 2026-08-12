@@ -26,6 +26,9 @@ export async function PUT(request: Request) {
       skillsTeach: input.skillsTeach,
       skillsLearn: input.skillsLearn,
       availability: input.availability,
+      // Kept in lockstep with skillsTeach so the browse/match queries can
+      // filter in Firestore instead of over-fetching and filtering in memory.
+      isTeaching: input.skillsTeach.length > 0,
       updatedAt: Date.now(),
     });
 
