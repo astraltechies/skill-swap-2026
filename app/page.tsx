@@ -130,7 +130,7 @@ export default async function HomePage() {
                 <li key={category.id}>
                   <Link
                     href={`/skills/${category.slug}`}
-                    className="flex h-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-surface-sunk"
+                    className="flex h-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 pressable transition-colors duration-(--duration-fast) hover:bg-surface-sunk"
                   >
                     <span className="text-2xl" aria-hidden>
                       {category.emoji}

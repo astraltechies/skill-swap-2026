@@ -5,15 +5,23 @@ export function Card({
   className,
   children,
   as: Tag = "div",
+  interactive = false,
 }: {
   className?: string;
   children: ReactNode;
   as?: "div" | "article" | "section" | "li";
+  /** Set when the whole card is a tap target — adds hover lift and press feedback. */
+  interactive?: boolean;
 }) {
   return (
     <Tag
       className={cn(
         "rounded-2xl border border-line bg-surface shadow-sm",
+        interactive && [
+          "pressable cursor-pointer",
+          "transition-[box-shadow,border-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
+          "hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md",
+        ],
         className,
       )}
     >

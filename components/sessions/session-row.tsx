@@ -32,7 +32,7 @@ export function SessionRow({
     <li>
       <Link
         href={`/sessions/${session.id}`}
-        className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors hover:bg-surface-sunk sm:p-4"
+        className="pressable flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors duration-(--duration-fast) hover:border-line-strong hover:bg-surface-sunk sm:p-4"
       >
         <Avatar name={other?.displayName ?? "Unknown"} src={other?.photoURL} size="md" />
 

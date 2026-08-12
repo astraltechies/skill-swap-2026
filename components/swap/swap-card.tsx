@@ -35,8 +35,13 @@ export function SwapCard({
   return (
     <article
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-line bg-surface",
-        "shadow-sm transition-shadow duration-200 hover:shadow-md",
+        "group relative cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface shadow-sm",
+        // The signature element, so it gets the most considered motion: a small
+        // lift, a warming border, and the seam notches easing apart — the card
+        // reading as two halves about to separate is the whole product idea.
+        "transition-[box-shadow,border-color,transform] duration-(--duration-fast) ease-(--ease-out-quart)",
+        "hover:-translate-y-0.5 hover:border-line-strong hover:shadow-md",
+        "active:translate-y-0 active:scale-[0.995]",
         "focus-within:ring-2 focus-within:ring-learn/30",
         className,
       )}

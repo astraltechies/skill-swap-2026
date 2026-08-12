@@ -106,7 +106,7 @@ export default async function SessionPage({ params }: PageProps<"/sessions/[sess
           {session.status === "accepted" || session.status === "completed" ? (
             <Link
               href={`/chat/${threadId}`}
-              className="rounded-xl border border-line-strong px-3 py-2 text-sm transition-colors hover:bg-surface-sunk"
+              className="rounded-xl border border-line-strong px-3 py-2 text-sm pressable transition-colors duration-(--duration-fast) hover:bg-surface-sunk"
             >
               <MessageSquare className="size-4" aria-hidden />
               <span className="sr-only">Open chat</span>

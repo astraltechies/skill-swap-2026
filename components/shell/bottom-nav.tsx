@@ -31,13 +31,19 @@ export function BottomNav({ unreadChats = 0 }: { unreadChats?: number }) {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "relative flex min-h-14 flex-col items-center justify-center gap-0.5 px-1 pt-1.5",
-                  "text-[0.6875rem] transition-colors",
+                  "text-[0.6875rem] transition-colors duration-(--duration-fast)",
+                  // The global tap-highlight is off, so without this a tab press
+                  // gives no feedback at all on Android.
+                  "active:scale-95 active:transition-transform active:duration-(--duration-instant)",
                   active ? "text-ink" : "text-muted",
                 )}
               >
                 <span className="relative">
                   <Icon
-                    className={cn("size-5", active && "stroke-[2.25]")}
+                    className={cn(
+                      "size-5 transition-transform duration-(--duration-base) ease-(--ease-spring)",
+                      active && "scale-110 stroke-[2.25]",
+                    )}
                     aria-hidden
                   />
                   {item.href === "/chat" && unreadChats > 0 ? (

@@ -38,7 +38,7 @@ export default async function LeaderboardPage() {
                 <Link
                   href={`/u/${teacher.username}`}
                   className={cn(
-                    "flex items-center gap-3 rounded-2xl border p-3 transition-colors hover:bg-surface-sunk",
+                    "flex items-center gap-3 rounded-2xl border p-3 pressable transition-colors duration-(--duration-fast) hover:bg-surface-sunk",
                     teacher.uid === me.uid
                       ? "border-learn/40 bg-learn-wash"
                       : "border-line bg-surface",

@@ -127,7 +127,7 @@ export default async function CategoryPage({ params }: PageProps<"/skills/[categ
                 <li key={user.uid}>
                   <Link
                     href={`/u/${user.username}`}
-                    className="flex h-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 transition-colors hover:bg-surface-sunk"
+                    className="flex h-full items-start gap-3 rounded-2xl border border-line bg-surface p-4 pressable transition-colors duration-(--duration-fast) hover:bg-surface-sunk"
                   >
                     <Avatar name={user.displayName} src={user.photoURL} />
                     <div className="min-w-0 flex-1">

@@ -37,7 +37,7 @@ export default async function ChatListPage() {
               <li key={thread.id}>
                 <Link
                   href={`/chat/${thread.id}`}
-                  className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors hover:bg-surface-sunk"
+                  className="pressable flex items-center gap-3 rounded-2xl border border-line bg-surface p-3 transition-colors duration-(--duration-fast) hover:border-line-strong hover:bg-surface-sunk"
                 >
                   <Avatar name={other?.displayName ?? "Student"} src={other?.photoURL} />
                   <div className="min-w-0 flex-1">

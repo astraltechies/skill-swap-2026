@@ -25,6 +25,10 @@ export function Pill({
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium",
+        // Pills are dense and mostly sit inside cards, so they lean on the
+        // parent's hover rather than owning one: the border firms up as the
+        // card lifts, which keeps a grid of them from feeling twitchy.
+        "transition-colors duration-(--duration-fast)",
         TONES[tone],
         className,
       )}

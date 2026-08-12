@@ -116,7 +116,7 @@ export function SkillBotChat({
                   <button
                     type="button"
                     onClick={() => send(prompt)}
-                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-left text-sm transition-colors hover:bg-surface-sunk"
+                    className="w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-left text-sm pressable transition-colors duration-(--duration-fast) hover:bg-surface-sunk"
                   >
                     {prompt}
                   </button>
