@@ -1,26 +1,271 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================================
+   Skill Swap — "Two Sides"
+   Every swap has a give and a get. The palette encodes that:
+   amber = teach (what you give, what you earn),
+   indigo = learn (what you get, what you spend).
+   Colour is functional here, not decorative — if something is
+   amber it is always about teaching, never about emphasis.
+   ============================================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  /* Ground */
+  --paper: #faf9f6;
+  --surface: #ffffff;
+  --surface-sunk: #f2f1ec;
+  --ink: #14141a;
+  --ink-soft: #45454f;
+  --muted: #6e6e78;
+  --line: #e5e3dc;
+  --line-strong: #d3d0c6;
+
+  /* Teach — give, earn, offer */
+  --teach: #f5a524;
+  --teach-strong: #d9860a;
+  --teach-ink: #6b4200;
+  --teach-wash: #fff5e3;
+
+  /* Learn — get, spend, seek */
+  --learn: #4d5dff;
+  --learn-strong: #3543e8;
+  --learn-ink: #232d99;
+  --learn-wash: #eef0ff;
+
+  /* Status */
+  --danger: #d93b40;
+  --danger-wash: #fdeced;
+  --success: #1f8a54;
+  --success-wash: #e8f6ee;
+  --focus: #4d5dff;
+
+  /* Shadows stay near-invisible; depth comes from the hairline. */
+  --elev-sm: 0 1px 2px rgb(20 20 26 / 0.04);
+  --elev-md: 0 2px 8px rgb(20 20 26 / 0.06), 0 1px 2px rgb(20 20 26 / 0.04);
+  --elev-lg: 0 12px 32px rgb(20 20 26 / 0.1), 0 2px 8px rgb(20 20 26 / 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --paper: #0e0e13;
+    --surface: #17171f;
+    --surface-sunk: #101017;
+    --ink: #f3f2ef;
+    --ink-soft: #c2c1bd;
+    --muted: #8e8e99;
+    --line: #292933;
+    --line-strong: #3a3a47;
+
+    --teach: #f5a524;
+    --teach-strong: #ffb949;
+    --teach-ink: #ffd699;
+    --teach-wash: #2a1e08;
+
+    --learn: #6d7aff;
+    --learn-strong: #8b95ff;
+    --learn-ink: #c3c9ff;
+    --learn-wash: #16182f;
+
+    --danger: #f0595e;
+    --danger-wash: #2c1315;
+    --success: #3fbf7f;
+    --success-wash: #0f2419;
+
+    --elev-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+    --elev-md: 0 2px 8px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+    --elev-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.4);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+[data-theme="dark"] {
+  --paper: #0e0e13;
+  --surface: #17171f;
+  --surface-sunk: #101017;
+  --ink: #f3f2ef;
+  --ink-soft: #c2c1bd;
+  --muted: #8e8e99;
+  --line: #292933;
+  --line-strong: #3a3a47;
+
+  --teach: #f5a524;
+  --teach-strong: #ffb949;
+  --teach-ink: #ffd699;
+  --teach-wash: #2a1e08;
+
+  --learn: #6d7aff;
+  --learn-strong: #8b95ff;
+  --learn-ink: #c3c9ff;
+  --learn-wash: #16182f;
+
+  --danger: #f0595e;
+  --danger-wash: #2c1315;
+  --success: #3fbf7f;
+  --success-wash: #0f2419;
+
+  --elev-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --elev-md: 0 2px 8px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+  --elev-lg: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 8px rgb(0 0 0 / 0.4);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-sunk: var(--surface-sunk);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-teach: var(--teach);
+  --color-teach-strong: var(--teach-strong);
+  --color-teach-ink: var(--teach-ink);
+  --color-teach-wash: var(--teach-wash);
+
+  --color-learn: var(--learn);
+  --color-learn-strong: var(--learn-strong);
+  --color-learn-ink: var(--learn-ink);
+  --color-learn-wash: var(--learn-wash);
+
+  --color-danger: var(--danger);
+  --color-danger-wash: var(--danger-wash);
+  --color-success: var(--success);
+  --color-success-wash: var(--success-wash);
+
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --shadow-sm: var(--elev-sm);
+  --shadow-md: var(--elev-md);
+  --shadow-lg: var(--elev-lg);
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    /* Keeps the iOS keyboard from zooming form fields. */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  /* Numbers that represent value — coins, ratings, counts — are set in
+     mono so the wallet reads like the ledger it actually is. */
+  .tabular {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Never remove focus rings — keyboard users need them. This only
+     suppresses the ring for pointer clicks, which browsers handle. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  ::selection {
+    background: var(--learn);
+    color: #fff;
+  }
+}
+
+@layer utilities {
+  /* Phone-first: content clears the bottom tab bar and the iOS home bar. */
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .h-dvh-safe {
+    height: 100dvh;
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* The signature: a card seamed down the middle, amber above the seam
+     (what they teach), indigo below (what they want to learn). */
+  .swap-seam {
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      var(--line-strong) 15%,
+      var(--line-strong) 85%,
+      transparent
+    );
+    height: 1px;
+  }
+
+  .swap-notch {
+    position: relative;
+  }
+
+  /* Two half-circles bitten out of the card edges at the seam, so a pair
+     of cards reads as tickets torn from the same stub. */
+  .swap-notch::before,
+  .swap-notch::after {
+    content: "";
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    background: var(--paper);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .swap-notch::before {
+    left: -8px;
+  }
+
+  .swap-notch::after {
+    right: -8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

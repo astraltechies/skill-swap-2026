@@ -1,0 +1,172 @@
+import "server-only";
+
+import { adminDb, isAdminConfigured } from "@/lib/firebase/admin";
+import {
+  COLLECTIONS,
+  type ChatThread,
+  type CoinTransaction,
+  type Rating,
+  type Session,
+  type Skill,
+  type SkillCategory,
+  type UserProfile,
+} from "@/types/firestore";
+import { cache } from "react";
+
+/**
+ * `cache()` dedupes within a single request — a page that renders three
+ * components all needing the skill catalogue reads Firestore once.
+ */
+
+export const getSkills = cache(async (): Promise<Skill[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb().collection(COLLECTIONS.skills).get();
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Skill);
+});
+
+export const getSkillsMap = cache(async (): Promise<Map<string, Skill>> => {
+  const skills = await getSkills();
+  return new Map(skills.map((s) => [s.id, s]));
+});
+
+export const getCategories = cache(async (): Promise<SkillCategory[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb().collection(COLLECTIONS.skillCategories).orderBy("order").get();
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as SkillCategory);
+});
+
+export const getUserByUsername = cache(
+  async (username: string): Promise<UserProfile | null> => {
+    if (!isAdminConfigured) return null;
+    const snap = await adminDb()
+      .collection(COLLECTIONS.users)
+      .where("username", "==", username.toLowerCase())
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const profile = snap.docs[0].data() as UserProfile;
+    // A banned profile is gone from the public site entirely.
+    return profile.status === "banned" ? null : profile;
+  },
+);
+
+export const getUserById = cache(async (uid: string): Promise<UserProfile | null> => {
+  if (!isAdminConfigured) return null;
+  const snap = await adminDb().collection(COLLECTIONS.users).doc(uid).get();
+  return snap.exists ? (snap.data() as UserProfile) : null;
+});
+
+/** Bulk-loads profiles for a list of ids, skipping banned and missing ones. */
+export const getUsersByIds = cache(async (uids: string[]): Promise<Map<string, UserProfile>> => {
+  const unique = [...new Set(uids)].filter(Boolean);
+  if (!isAdminConfigured || unique.length === 0) return new Map();
+
+  const db = adminDb();
+  // getAll has no documented cap, but chunking keeps a large fan-out safe.
+  const chunks: string[][] = [];
+  for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
+
+  const results = await Promise.all(
+    chunks.map((chunk) =>
+      db.getAll(...chunk.map((uid) => db.collection(COLLECTIONS.users).doc(uid))),
+    ),
+  );
+
+  const map = new Map<string, UserProfile>();
+  for (const snap of results.flat()) {
+    if (!snap.exists) continue;
+    const profile = snap.data() as UserProfile;
+    if (profile.status === "banned") continue;
+    map.set(profile.uid, profile);
+  }
+  return map;
+});
+
+/** Active students who teach at least one thing — the browse and match pool. */
+export const getTeachingUsers = cache(async (limit = 200): Promise<UserProfile[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection(COLLECTIONS.users)
+    .where("status", "==", "active")
+    .limit(limit)
+    .get();
+  return snap.docs
+    .map((d) => d.data() as UserProfile)
+    .filter((u) => u.skillsTeach.length > 0);
+});
+
+export const getSessionsForUser = cache(async (uid: string): Promise<Session[]> => {
+  if (!isAdminConfigured) return [];
+  const db = adminDb();
+  const [asTeacher, asLearner] = await Promise.all([
+    db.collection(COLLECTIONS.sessions).where("teacherId", "==", uid).get(),
+    db.collection(COLLECTIONS.sessions).where("learnerId", "==", uid).get(),
+  ]);
+
+  const seen = new Map<string, Session>();
+  for (const doc of [...asTeacher.docs, ...asLearner.docs]) {
+    seen.set(doc.id, { ...doc.data(), id: doc.id } as Session);
+  }
+  return [...seen.values()].sort((a, b) => b.scheduledAt - a.scheduledAt);
+});
+
+export const getSessionById = cache(async (sessionId: string): Promise<Session | null> => {
+  if (!isAdminConfigured) return null;
+  const snap = await adminDb().collection(COLLECTIONS.sessions).doc(sessionId).get();
+  return snap.exists ? ({ ...snap.data(), id: snap.id } as Session) : null;
+});
+
+export const getChatThreads = cache(async (uid: string): Promise<ChatThread[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection(COLLECTIONS.chatThreads)
+    .where("participantIds", "array-contains", uid)
+    .orderBy("lastMessageAt", "desc")
+    .limit(50)
+    .get();
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as ChatThread);
+});
+
+export const getCoinTransactions = cache(
+  async (uid: string, limit = 50): Promise<CoinTransaction[]> => {
+    if (!isAdminConfigured) return [];
+    const snap = await adminDb()
+      .collection(COLLECTIONS.coinTransactions)
+      .where("userId", "==", uid)
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as CoinTransaction);
+  },
+);
+
+export const getRatingsFor = cache(async (uid: string, limit = 10): Promise<Rating[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection(COLLECTIONS.ratings)
+    .where("ratedUserId", "==", uid)
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Rating);
+});
+
+export const getAwardedBadges = cache(async (uid: string): Promise<string[]> => {
+  if (!isAdminConfigured) return [];
+  const snap = await adminDb()
+    .collection(COLLECTIONS.users)
+    .doc(uid)
+    .collection("badges")
+    .get();
+  return snap.docs.map((d) => d.id);
+});
+
+export const getBlockedIds = cache(async (uid: string): Promise<Set<string>> => {
+  if (!isAdminConfigured) return new Set();
+  const snap = await adminDb()
+    .collection(COLLECTIONS.users)
+    .doc(uid)
+    .collection("blocks")
+    .get();
+  return new Set(snap.docs.map((d) => d.id));
+});

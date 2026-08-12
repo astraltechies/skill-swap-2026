@@ -6,12 +6,27 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "seed": "node --env-file=.env.local scripts/seed.mts",
+    "seed:demo": "node --env-file=.env.local scripts/seed.mts --demo",
+    "rules:deploy": "firebase deploy --only firestore:rules,firestore:indexes",
+    "emulators": "firebase emulators:start"
   },
   "dependencies": {
+    "clsx": "^2.1.1",
+    "firebase": "^12.17.1",
+    "firebase-admin": "^14.2.0",
+    "lucide-react": "^1.31.0",
     "next": "16.3.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

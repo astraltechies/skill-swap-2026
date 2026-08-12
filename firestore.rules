@@ -1,0 +1,244 @@
+rules_version = '2';
+
+// =============================================================================
+// Skill Swap security rules
+//
+// Posture: deny by default. The client SDK is allowed to do exactly three
+// things — read public catalogue data, maintain its own profile, and carry a
+// live chat. Everything that carries value or consequence (coin balances,
+// ratings, reports, account status, consent records) is written only by the
+// server routes using the Admin SDK, which bypasses these rules. So any field
+// listed as server-owned below has no client write path at all, not a
+// hard-to-reach one.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function existingUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActive() {
+      return signedIn() && existingUser().status == 'active';
+    }
+
+    function hasConsent() {
+      return signedIn() && existingUser().guardianConsent.given == true;
+    }
+
+    // Fields only the server may ever set. Listed once, reused below.
+    function serverOwnedUserFields() {
+      return [
+        'uid', 'username', 'role', 'status', 'coinBalance', 'ratingAvg',
+        'ratingCount', 'sessionsTaught', 'sessionsLearned', 'reportCount',
+        'guardianConsent', 'ageConfirmed', 'createdAt'
+      ];
+    }
+
+    function touchesOnlyOwnFields() {
+      return !request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasAny(serverOwnedUserFields());
+    }
+
+    function threadData(threadId) {
+      return get(/databases/$(database)/documents/chatThreads/$(threadId)).data;
+    }
+
+    // Blocking is mutual: if either side blocked the other, no contact.
+    // Both participants are checked rather than working out which one is the
+    // "other" — the caller is always one of the two, and a self-block cannot
+    // exist (see the /blocks rule), so the extra pair of checks is a no-op.
+    function noBlockBetween(participants) {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(participants[0]))
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocks/$(participants[1]))
+        && !exists(/databases/$(database)/documents/users/$(participants[0])/blocks/$(request.auth.uid))
+        && !exists(/databases/$(database)/documents/users/$(participants[1])/blocks/$(request.auth.uid));
+    }
+
+    // ---------- public catalogue ----------
+    // Readable by anyone, including crawlers hitting the SEO pages.
+
+    match /skillCategories/{categoryId} {
+      allow read: if true;
+      allow write: if false; // admin portal only, via server
+    }
+
+    match /skills/{skillId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /badges/{badgeId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /siteConfig/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------- users ----------
+
+    match /users/{uid} {
+      // Profiles are public: the SEO profile pages and browse grid need them.
+      // Only non-sensitive fields are ever rendered — see PublicUserProfile.
+      allow read: if true;
+
+      // Account creation goes through /api/auth/init so the server controls the
+      // starting balance, role and username reservation.
+      allow create: if false;
+
+      // A user edits their own bio, skills, availability and photo — and
+      // nothing that carries value or authority.
+      allow update: if isSelf(uid)
+                    && isActive()
+                    && touchesOnlyOwnFields();
+
+      allow delete: if false;
+
+      // Blocks are private to the blocker and directly client-writable, so
+      // blocking works instantly even if a server route is down.
+      match /blocks/{blockedUid} {
+        allow read: if isSelf(uid);
+        allow create, delete: if isSelf(uid) && blockedUid != uid;
+        allow update: if false;
+      }
+
+      match /badges/{badgeId} {
+        allow read: if true;
+        allow write: if false; // awarded server-side
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isSelf(uid);
+        // The only field a client may flip is `read`.
+        allow update: if isSelf(uid)
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['read']);
+        allow create, delete: if false;
+      }
+    }
+
+    // Username reservations. Read-only so the signup form can check
+    // availability; the actual reservation is a server-side transaction.
+    match /usernames/{username} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ---------- sessions ----------
+
+    match /sessions/{sessionId} {
+      // Only the two people in the session can see it.
+      allow read: if signedIn()
+                  && (request.auth.uid == resource.data.teacherId
+                      || request.auth.uid == resource.data.learnerId);
+
+      // Booking, accepting, declining, cancelling and completing all run
+      // through server routes: they move coins, check blocks and enforce the
+      // status machine. A client writing here directly could award itself
+      // coins by marking a session complete.
+      allow write: if false;
+    }
+
+    // ---------- chat ----------
+
+    match /chatThreads/{threadId} {
+      allow read: if signedIn()
+                  && request.auth.uid in resource.data.participantIds;
+
+      // Threads are opened server-side when a booking is accepted.
+      allow create: if false;
+
+      // Clients update only the preview fields, and only in their own thread.
+      allow update: if signedIn()
+                    && request.auth.uid in resource.data.participantIds
+                    && hasConsent()
+                    && request.resource.data.participantIds == resource.data.participantIds
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['lastMessage', 'lastMessageAt', 'lastSenderId']);
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if signedIn()
+                    && request.auth.uid in threadData(threadId).participantIds;
+
+        // Written straight from the client so chat stays instant. The rule
+        // does the work a server route would: identity, membership, consent,
+        // blocking, and that the message is actually theirs and well formed.
+        allow create: if signedIn()
+                      && isActive()
+                      && hasConsent()
+                      && request.resource.data.senderId == request.auth.uid
+                      && request.auth.uid in threadData(threadId).participantIds
+                      && request.resource.data.text is string
+                      && request.resource.data.text.size() > 0
+                      && request.resource.data.text.size() <= 2000
+                      && request.resource.data.createdAt is number
+                      && noBlockBetween(threadData(threadId).participantIds);
+
+        // Messages are evidence in a moderation report — they stay put.
+        allow update, delete: if false;
+      }
+    }
+
+    // ---------- money, reputation, safety: server-only ----------
+
+    match /coinTransactions/{txId} {
+      allow read: if signedIn() && request.auth.uid == resource.data.userId;
+      allow write: if false;
+    }
+
+    match /ratings/{ratingId} {
+      // Public so they can appear on profile and SEO pages.
+      allow read: if true;
+      // Written server-side, which checks the session actually happened.
+      allow write: if false;
+    }
+
+    match /matches/{matchId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.userIds;
+      allow write: if false;
+    }
+
+    match /reports/{reportId} {
+      // A reporter cannot re-read or amend a report once filed, and nobody
+      // can enumerate reports against themselves. Admin review happens
+      // server-side.
+      allow read, write: if false;
+    }
+
+    // The consent audit trail. No client may read or write it, ever.
+    match /consentRecords/{recordId} {
+      allow read, write: if false;
+    }
+
+    match /adminActions/{actionId} {
+      allow read, write: if false;
+    }
+
+    match /aiUsageLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    // ---------- catch-all ----------
+    // Any collection added later is denied until it is explicitly considered.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
