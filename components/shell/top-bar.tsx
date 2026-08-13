@@ -1,4 +1,5 @@
 import { Logo } from "@/components/brand/logo";
+import { NotificationBell } from "@/components/shell/notification-bell";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import type { UserProfile } from "@/types/firestore";
@@ -9,7 +10,7 @@ import Link from "next/link";
  * Phone-only header. The balance lives here because it is the number a student
  * checks most often — it decides whether they can book anything today.
  */
-export function TopBar({ user }: { user: UserProfile }) {
+export function TopBar({ user, unread }: { user: UserProfile; unread: number }) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur md:hidden">
       <Link href="/dashboard" aria-label="Skill Swap home">
@@ -17,6 +18,7 @@ export function TopBar({ user }: { user: UserProfile }) {
       </Link>
 
       <div className="flex items-center gap-1.5">
+        <NotificationBell unread={unread} />
         <ThemeToggle />
 
         <Link

@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/brand/logo";
 import { isActive, PRIMARY_NAV, SECONDARY_NAV, type NavItem } from "@/components/shell/nav-items";
+import { NotificationBell } from "@/components/shell/notification-bell";
 import { ThemeToggle } from "@/components/shell/theme-toggle";
 import { cn } from "@/lib/utils";
 import { LogOut, ShieldAlert } from "lucide-react";
@@ -43,14 +44,17 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function SideNav({ isAdmin }: { isAdmin: boolean }) {
+export function SideNav({ isAdmin, unread }: { isAdmin: boolean; unread: number }) {
   const pathname = usePathname();
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line px-3 py-5 md:flex lg:w-64">
-      <Link href="/dashboard" className="group mb-6 px-2">
-        <Logo />
-      </Link>
+      <div className="mb-6 flex items-center justify-between gap-2 px-2">
+        <Link href="/dashboard" className="group">
+          <Logo />
+        </Link>
+        <NotificationBell unread={unread} />
+      </div>
 
       <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5">
         {PRIMARY_NAV.map((item) => (

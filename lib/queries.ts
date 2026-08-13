@@ -5,6 +5,7 @@ import {
   COLLECTIONS,
   type ChatThread,
   type CoinTransaction,
+  type Notification,
   type Rating,
   type Session,
   type Skill,
@@ -254,4 +255,37 @@ export const getBlockedIds = cache(async (uid: string): Promise<Set<string>> => 
     .collection("blocks")
     .get();
   return new Set(snap.docs.map((d) => d.id));
+});
+
+export const getNotifications = cache(
+  async (uid: string, limit = 30): Promise<Notification[]> => {
+    if (!isAdminConfigured) return [];
+    const snap = await adminDb()
+      .collection(COLLECTIONS.users)
+      .doc(uid)
+      .collection("notifications")
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => ({ ...d.data(), id: d.id }) as Notification);
+  },
+);
+
+/**
+ * Counts unread notifications for the badge.
+ *
+ * Capped at 20 because the badge renders "9+" past nine — reading the whole
+ * backlog to render a number that stops counting would be paying for precision
+ * nobody sees.
+ */
+export const getUnreadCount = cache(async (uid: string): Promise<number> => {
+  if (!isAdminConfigured) return 0;
+  const snap = await adminDb()
+    .collection(COLLECTIONS.users)
+    .doc(uid)
+    .collection("notifications")
+    .where("read", "==", false)
+    .limit(20)
+    .get();
+  return snap.size;
 });

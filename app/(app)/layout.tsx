@@ -2,6 +2,7 @@ import { BottomNav } from "@/components/shell/bottom-nav";
 import { SideNav } from "@/components/shell/side-nav";
 import { TopBar } from "@/components/shell/top-bar";
 import { getCurrentUser, isAdminConfigured } from "@/lib/firebase/admin";
+import { getUnreadCount } from "@/lib/queries";
 import { redirect } from "next/navigation";
 import { SetupNotice } from "./setup-notice";
 import { SuspendedNotice } from "./suspended-notice";
@@ -34,12 +35,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // page into the generic error screen.
   if (user.status === "suspended") return <SuspendedNotice />;
 
+  const unread = await getUnreadCount(user.uid);
+
   return (
     <div className="flex min-h-dvh bg-paper">
-      <SideNav isAdmin={user.role === "admin"} />
+      <SideNav isAdmin={user.role === "admin"} unread={unread} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar user={user} />
+        <TopBar user={user} unread={unread} />
         {/* The bottom padding clears the tab bar; it collapses on desktop
             where the tab bar is not rendered. */}
         <main className="flex-1 pb-24 md:pb-8">{children}</main>
