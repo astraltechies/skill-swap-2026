@@ -1,3 +1,4 @@
+import { UserActions } from "@/app/(app)/admin/users/user-actions";
 import { PageContainer, PageHeader } from "@/components/shell/page";
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardBody } from "@/components/ui/card";
@@ -89,6 +90,13 @@ export default async function AdminUsersPage() {
                     <span className="text-xs text-muted">coins</span>
                   </span>
                 </div>
+
+                <UserActions
+                  uid={user.uid}
+                  name={user.displayName}
+                  status={user.status}
+                  isAdmin={user.role === "admin"}
+                />
               </li>
             ))}
           </ul>
@@ -96,11 +104,13 @@ export default async function AdminUsersPage() {
       </Card>
 
       <p className="mt-4 text-sm text-muted">
-        To suspend or ban an account, act on a report in the{" "}
+        Acting from here is for cases with no report behind them. Where there is
+        a report, use the{" "}
         <Link href="/admin/reports" className="underline underline-offset-2">
           moderation queue
-        </Link>
-        . That path records the reason in the audit log.
+        </Link>{" "}
+        so the account and the report stay in step. Either way the reason is
+        written to the audit log.
       </p>
     </PageContainer>
   );

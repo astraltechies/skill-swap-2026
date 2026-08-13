@@ -14,10 +14,15 @@ export const metadata: Metadata = {
 export default async function AdminReportsPage() {
   const [queue, resolved] = await Promise.all([getReportQueue(), getResolvedReports()]);
 
-  const users = await getUsersByIds([
-    ...queue.flatMap((r) => [r.reporterId, r.reportedUserId]),
-    ...resolved.flatMap((r) => [r.reporterId, r.reportedUserId]),
-  ]);
+  // includeBanned: this is the screen that has to be able to undo a ban, so it
+  // is the one place a banned profile must still load.
+  const users = await getUsersByIds(
+    [
+      ...queue.flatMap((r) => [r.reporterId, r.reportedUserId]),
+      ...resolved.flatMap((r) => [r.reporterId, r.reportedUserId]),
+    ],
+    true,
+  );
 
   const highPriority = queue.filter((r) => r.priority === "high");
   const normal = queue.filter((r) => r.priority === "normal");

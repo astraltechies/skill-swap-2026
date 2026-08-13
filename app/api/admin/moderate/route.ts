@@ -1,13 +1,29 @@
 import { apiError, HandledError, ok, parseBody } from "@/lib/api";
-import { adminDb, requireAdmin } from "@/lib/firebase/admin";
+import { adminAuth, adminDb, requireAdmin } from "@/lib/firebase/admin";
 import { COLLECTIONS, type AdminActionType, type Report } from "@/types/firestore";
 import { z } from "zod";
 
-const bodySchema = z.object({
-  reportId: z.string().min(1),
-  action: z.enum(["resolve", "dismiss", "suspend", "ban", "reinstate"]),
-  notes: z.string().trim().max(1000).default(""),
-});
+/**
+ * Two ways in.
+ *
+ * Through a report, which is the usual path and keeps the report and the
+ * account in step. Or directly against an account, because a moderator who can
+ * see something is wrong should not have to wait for someone to file a report
+ * before they can act — and reinstating has no report to hang off at all once
+ * the original one is closed.
+ */
+const bodySchema = z.union([
+  z.object({
+    reportId: z.string().min(1),
+    action: z.enum(["resolve", "dismiss", "suspend", "ban", "reinstate"]),
+    notes: z.string().trim().max(1000).default(""),
+  }),
+  z.object({
+    userId: z.string().min(1),
+    action: z.enum(["suspend", "ban", "reinstate"]),
+    notes: z.string().trim().max(1000).default(""),
+  }),
+]);
 
 const ACTION_LOG: Record<string, AdminActionType> = {
   resolve: "resolve_report",
@@ -17,54 +33,81 @@ const ACTION_LOG: Record<string, AdminActionType> = {
   reinstate: "unban_user",
 };
 
+const STATUS_FOR: Record<string, "active" | "suspended" | "banned"> = {
+  suspend: "suspended",
+  ban: "banned",
+  reinstate: "active",
+};
+
 /**
- * Acts on a report.
- *
  * Every path writes an `adminActions` row alongside the change, so there is a
  * record of who did what and why — a moderator cannot quietly ban someone.
  */
 export async function POST(request: Request) {
   try {
     const admin = await requireAdmin();
-    const { reportId, action, notes } = await parseBody(request, bodySchema);
+    const input = await parseBody(request, bodySchema);
+    const { action, notes } = input;
 
     const db = adminDb();
-    const reportRef = db.collection(COLLECTIONS.reports).doc(reportId);
-    const snap = await reportRef.get();
-    if (!snap.exists) throw new HandledError("That report no longer exists.", 404);
-
-    const report = snap.data() as Report;
-    const now = Date.now();
     const batch = db.batch();
-    const userRef = db.collection(COLLECTIONS.users).doc(report.reportedUserId);
+    const now = Date.now();
 
-    if (action === "dismiss") {
+    let targetUid: string;
+    let logContext: string;
+
+    if ("reportId" in input) {
+      const reportRef = db.collection(COLLECTIONS.reports).doc(input.reportId);
+      const snap = await reportRef.get();
+      if (!snap.exists) throw new HandledError("That report no longer exists.", 404);
+
+      const report = snap.data() as Report;
+      targetUid = report.reportedUserId;
+      logContext = `Report ${input.reportId}`;
+
       batch.update(reportRef, {
-        status: "dismissed",
+        status: action === "dismiss" ? "dismissed" : "resolved",
         adminNotes: notes,
         resolvedBy: admin.uid,
         resolvedAt: now,
       });
+
       // A dismissed report should not leave the account flagged.
-      batch.update(userRef, { status: "active" });
+      if (action === "dismiss") {
+        batch.update(db.collection(COLLECTIONS.users).doc(targetUid), {
+          status: "active",
+        });
+      }
     } else {
-      batch.update(reportRef, {
-        status: "resolved",
-        adminNotes: notes,
-        resolvedBy: admin.uid,
-        resolvedAt: now,
-      });
+      targetUid = input.userId;
+      logContext = "Direct action";
+    }
 
-      if (action === "suspend") batch.update(userRef, { status: "suspended" });
-      if (action === "ban") batch.update(userRef, { status: "banned" });
-      if (action === "reinstate") batch.update(userRef, { status: "active", reportCount: 0 });
+    if (targetUid === admin.uid) {
+      throw new HandledError("You can't moderate your own account.", 400);
+    }
+
+    const userRef = db.collection(COLLECTIONS.users).doc(targetUid);
+    if (!(await userRef.get()).exists) {
+      throw new HandledError("That account no longer exists.", 404);
+    }
+
+    const nextStatus = STATUS_FOR[action];
+    if (nextStatus) {
+      batch.update(userRef, {
+        status: nextStatus,
+        // Reinstating clears the counter too, otherwise the account trips the
+        // auto-review threshold again on its very next report.
+        ...(action === "reinstate" ? { reportCount: 0 } : {}),
+        updatedAt: now,
+      });
     }
 
     batch.create(db.collection(COLLECTIONS.adminActions).doc(), {
       adminId: admin.uid,
       actionType: ACTION_LOG[action],
-      targetId: report.reportedUserId,
-      notes: `Report ${reportId}: ${notes || "(no note)"}`,
+      targetId: targetUid,
+      notes: `${logContext}: ${notes || "(no note)"}`,
       createdAt: now,
     });
 
@@ -73,9 +116,9 @@ export async function POST(request: Request) {
     // A banned account's session cookie must stop working immediately rather
     // than at its natural two-week expiry.
     if (action === "ban" || action === "suspend") {
-      await import("@/lib/firebase/admin").then(({ adminAuth }) =>
-        adminAuth().revokeRefreshTokens(report.reportedUserId).catch(() => {}),
-      );
+      await adminAuth()
+        .revokeRefreshTokens(targetUid)
+        .catch(() => {});
     }
 
     return ok();

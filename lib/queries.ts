@@ -90,31 +90,41 @@ export const getUserById = cache(async (uid: string): Promise<UserProfile | null
   return snap.exists ? (snap.data() as UserProfile) : null;
 });
 
-/** Bulk-loads profiles for a list of ids, skipping banned and missing ones. */
-export const getUsersByIds = cache(async (uids: string[]): Promise<Map<string, UserProfile>> => {
-  const unique = [...new Set(uids)].filter(Boolean);
-  if (!isAdminConfigured || unique.length === 0) return new Map();
+/**
+ * Bulk-loads profiles for a list of ids, skipping missing ones.
+ *
+ * Banned accounts are hidden by default, because everywhere a student sees
+ * other people they should be gone. The moderation queue passes
+ * `includeBanned` — without it a banned account cannot be loaded, so the one
+ * screen that needs to offer "reinstate" was the one screen that could never
+ * show it.
+ */
+export const getUsersByIds = cache(
+  async (uids: string[], includeBanned = false): Promise<Map<string, UserProfile>> => {
+    const unique = [...new Set(uids)].filter(Boolean);
+    if (!isAdminConfigured || unique.length === 0) return new Map();
 
-  const db = adminDb();
-  // getAll has no documented cap, but chunking keeps a large fan-out safe.
-  const chunks: string[][] = [];
-  for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
+    const db = adminDb();
+    // getAll has no documented cap, but chunking keeps a large fan-out safe.
+    const chunks: string[][] = [];
+    for (let i = 0; i < unique.length; i += 100) chunks.push(unique.slice(i, i + 100));
 
-  const results = await Promise.all(
-    chunks.map((chunk) =>
-      db.getAll(...chunk.map((uid) => db.collection(COLLECTIONS.users).doc(uid))),
-    ),
-  );
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        db.getAll(...chunk.map((uid) => db.collection(COLLECTIONS.users).doc(uid))),
+      ),
+    );
 
-  const map = new Map<string, UserProfile>();
-  for (const snap of results.flat()) {
-    if (!snap.exists) continue;
-    const profile = snap.data() as UserProfile;
-    if (profile.status === "banned") continue;
-    map.set(profile.uid, profile);
-  }
-  return map;
-});
+    const map = new Map<string, UserProfile>();
+    for (const snap of results.flat()) {
+      if (!snap.exists) continue;
+      const profile = snap.data() as UserProfile;
+      if (!includeBanned && profile.status === "banned") continue;
+      map.set(profile.uid, profile);
+    }
+    return map;
+  },
+);
 
 /**
  * Active students who teach at least one thing — the browse and match pool.

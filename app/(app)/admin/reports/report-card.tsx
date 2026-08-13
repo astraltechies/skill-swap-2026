@@ -110,12 +110,37 @@ export function ReportCard({
           )}
 
           {readOnly ? (
-            report.adminNotes ? (
-              <p className="text-sm text-muted">
-                <span className="font-medium text-ink">Moderator note:</span>{" "}
-                {report.adminNotes}
-              </p>
-            ) : null
+            <>
+              {report.adminNotes ? (
+                <p className="text-sm text-muted">
+                  <span className="font-medium text-ink">Moderator note:</span>{" "}
+                  {report.adminNotes}
+                </p>
+              ) : null}
+
+              {/*
+                Banning closes the report, which moves the card here — so
+                without this, the only way to undo a ban lived on a screen the
+                ban itself had just navigated away from. A closed report still
+                has to offer the way back.
+              */}
+              {reported && reported.status !== "active" ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Pill tone="danger">
+                    {reported.status === "banned" ? "Banned" : "Suspended"}
+                  </Pill>
+                  {error ? <FieldError>{error}</FieldError> : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={pending === "reinstate"}
+                    onClick={() => act("reinstate")}
+                  >
+                    Reinstate this account
+                  </Button>
+                </div>
+              ) : null}
+            </>
           ) : (
             <>
               <Textarea
