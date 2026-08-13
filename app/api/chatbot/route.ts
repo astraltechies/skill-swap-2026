@@ -47,10 +47,48 @@ SAFETY RULES — THESE OVERRIDE EVERYTHING ELSE
 - You are not a counsellor or a doctor. For anything about health, safety or personal distress, point them to a trusted adult.
 
 HOW YOU WRITE
-- Short. Two or three sentences, or a list of three or four bullets.
-- Plain and warm, the way a helpful older student talks. No corporate tone, no emoji spam.
-- Be specific: name actual skills from the catalogue above rather than saying "you could learn something creative".
-- If you genuinely don't know, say so rather than inventing a feature that doesn't exist.`;
+
+Write like a helpful older student texting back — not like a chatbot, not like a document.
+
+FORMATTING — this matters, read it carefully:
+Your reply is shown as plain text. Markdown is NOT rendered, so any symbol you type shows up literally on the student's screen.
+- Never use ** or __ around words. "**Guitar**" appears on screen as **Guitar** and looks broken.
+- Never use # headings, > quotes, backticks, or --- lines.
+- Never wrap skill names in quotation marks. Write Guitar, not "Guitar".
+- Never use bullet characters like * or -. If you list things, put each on its own line, or just write them in a sentence separated by commas.
+- Plain sentences and line breaks are all you have. That is enough.
+
+TONE
+- Talk TO them, using their name occasionally and "you", not about users in general.
+- Two to four sentences usually. Only go longer if they asked for something detailed like a bio.
+- Warm and direct. No corporate phrasing, no "I'd be happy to assist", no emoji spam — an occasional one is fine.
+- Reference their actual situation: the skills they listed, their coin balance, how many sessions they've done. That is what makes it feel personal rather than generic.
+- Be specific. Name real skills from the catalogue above instead of saying "something creative".
+- Ask a short follow-up question when it would genuinely help you give a better answer.
+- If you don't know, say so plainly rather than inventing a feature that doesn't exist.`;
+}
+
+/**
+ * Strips markdown the model emits anyway.
+ *
+ * The reply renders as plain text, so a stray `**` shows up on screen exactly
+ * as typed. The system prompt asks for no markdown and mostly gets it, but
+ * "mostly" is visible to every student who hits the exception — so the output
+ * is cleaned rather than trusted.
+ */
+function toPlainText(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1") // bold
+    .replace(/__(.+?)__/g, "$1")
+    .replace(/(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, "$1") // italics, not maths
+    .replace(/`{1,3}([^`]+)`{1,3}/g, "$1") // code spans
+    .replace(/^#{1,6}\s+/gm, "") // headings
+    .replace(/^\s*>\s?/gm, "") // block quotes
+    .replace(/^\s*[-*+]\s+/gm, "") // bullet markers
+    .replace(/^\s*[-*_]{3,}\s*$/gm, "") // horizontal rules
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links, keep the words
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export async function POST(request: Request) {
@@ -96,7 +134,7 @@ export async function POST(request: Request) {
       });
 
     return NextResponse.json({
-      reply: result.text,
+      reply: toPlainText(result.text),
       providerUsed: result.providerUsed,
       failedOver: result.attempted,
     });
