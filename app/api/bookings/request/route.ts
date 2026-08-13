@@ -79,6 +79,8 @@ export async function POST(request: Request) {
       roomId: roomIdFor(ref.id),
       coinAmount: COINS.sessionCost,
       note: input.note,
+      teacherConfirmedAt: null,
+      learnerConfirmedAt: null,
       settledAt: null,
       createdAt: now,
       updatedAt: now,

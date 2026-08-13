@@ -4,10 +4,10 @@ import { ReportDialog } from "@/components/safety/report-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { FieldError, Textarea } from "@/components/ui/field";
-import { SESSION_COMPLETE_WINDOW_MS } from "@/lib/constants";
+import { minimumElapsedMs, SESSION_COMPLETE_WINDOW_MS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Session } from "@/types/firestore";
-import { Check, Star } from "lucide-react";
+import { Check, Clock, Hourglass, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -74,11 +74,23 @@ export function SessionActions({
     };
   }, []);
 
-  const canComplete =
+  const confirmableAt = session.scheduledAt + minimumElapsedMs(session.durationMins);
+  const myConfirmation = viewerIsTeacher
+    ? session.teacherConfirmedAt
+    : session.learnerConfirmedAt;
+  const theirConfirmation = viewerIsTeacher
+    ? session.learnerConfirmedAt
+    : session.teacherConfirmedAt;
+
+  const withinWindow =
     now !== null &&
     session.status === "accepted" &&
-    now >= session.scheduledAt &&
     now <= session.scheduledAt + SESSION_COMPLETE_WINDOW_MS;
+
+  const tooEarly = now !== null && now < confirmableAt;
+  const canConfirm = withinWindow && !tooEarly && myConfirmation === null;
+  const minutesUntilConfirmable =
+    now !== null ? Math.max(0, Math.ceil((confirmableAt - now) / 60_000)) : 0;
 
   return (
     <div className="space-y-4">
@@ -120,17 +132,60 @@ export function SessionActions({
         </p>
       ) : null}
 
-      {canComplete ? (
-        <Button
-          size="lg"
-          fullWidth
-          loading={pending === "complete"}
-          onClick={() => post("/api/sessions/complete", { sessionId: session.id }, "complete")}
-        >
-          <Check className="size-4" aria-hidden />
-          Mark complete
-          {viewerIsTeacher ? ` and earn ${session.coinAmount}` : ""}
-        </Button>
+      {/*
+        Confirming is a two-person act. Showing whose signature is still
+        missing — rather than a button that silently does nothing — is what
+        makes the rule feel like a safeguard instead of a bug.
+      */}
+      {withinWindow && tooEarly ? (
+        <Card className="border-dashed">
+          <CardBody className="flex items-start gap-3">
+            <Clock className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+            <div>
+              <p className="text-sm font-medium">Not yet</p>
+              <p className="mt-0.5 text-sm text-muted">
+                A {session.durationMins}-minute session can be confirmed about{" "}
+                {minutesUntilConfirmable} minute
+                {minutesUntilConfirmable === 1 ? "" : "s"} from now. Coins only move for
+                sessions that actually ran.
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+      ) : null}
+
+      {canConfirm ? (
+        <div className="space-y-2">
+          <Button
+            size="lg"
+            fullWidth
+            loading={pending === "complete"}
+            onClick={() => post("/api/sessions/complete", { sessionId: session.id }, "complete")}
+          >
+            <Check className="size-4" aria-hidden />
+            Confirm this session happened
+          </Button>
+          <p className="text-center text-xs text-muted">
+            {theirConfirmation !== null
+              ? `${otherName} has already confirmed — this settles it and moves the coins.`
+              : `${otherName} needs to confirm too before any coins move.`}
+          </p>
+        </div>
+      ) : null}
+
+      {withinWindow && myConfirmation !== null ? (
+        <Card className="border-dashed">
+          <CardBody className="flex items-start gap-3">
+            <Hourglass className="mt-0.5 size-5 shrink-0 text-muted" aria-hidden />
+            <div>
+              <p className="text-sm font-medium">Waiting for {otherName}</p>
+              <p className="mt-0.5 text-sm text-muted">
+                You&apos;ve confirmed this session. The coins move once {otherName} confirms
+                as well.
+              </p>
+            </div>
+          </CardBody>
+        </Card>
       ) : null}
 
       {session.status === "completed" && !rated ? (

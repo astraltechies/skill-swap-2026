@@ -12,8 +12,8 @@ export const POLICY_VERSION = "2026-01-v1";
 export const MIN_AGE = 13;
 
 export const COINS = {
-  /** Enough to book two sessions before you have taught anything. */
-  welcomeBonus: 60,
+  /** Enough to book four sessions before you have taught anything. */
+  welcomeBonus: 100,
   /** Standard price of a 45-minute session. */
   sessionCost: 25,
   /** Teacher receives the full amount the learner pays — the platform takes nothing. */
@@ -26,6 +26,33 @@ export const DEFAULT_SESSION_DURATION = 45;
 
 /** How long after the scheduled start a session can still be marked complete. */
 export const SESSION_COMPLETE_WINDOW_MS = 1000 * 60 * 60 * 24 * 7;
+
+/**
+ * How much of the booked time must actually pass before either person can mark
+ * the session complete.
+ *
+ * Without this, a 30-minute booking could be "completed" after one minute and
+ * the coins would move — so the fastest way to earn would be to book a friend,
+ * join, and immediately leave. Requiring most of the booked time to elapse
+ * makes teaching properly the cheapest route to the reward.
+ */
+const SESSION_MIN_ELAPSED_FRACTION = 0.6;
+
+/** Floor for the rule above, so a short session still has to be a real one. */
+const SESSION_MIN_ELAPSED_MS = 1000 * 60 * 10;
+
+/**
+ * How long after the start time a session can first be confirmed: most of the
+ * booked time, with a floor so even the shortest booking has to be real.
+ * Shared by the server that enforces it and the UI that counts down to it, so
+ * the button never enables a moment before the API would accept it.
+ */
+export function minimumElapsedMs(durationMins: number): number {
+  return Math.max(
+    SESSION_MIN_ELAPSED_MS,
+    Math.round(durationMins * 60_000 * SESSION_MIN_ELAPSED_FRACTION),
+  );
+}
 
 export const BADGES: BadgeDef[] = [
   {

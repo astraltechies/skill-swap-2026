@@ -1,7 +1,7 @@
 import { apiError, HandledError, ok, parseBody } from "@/lib/api";
 import { earnedBadgeIds } from "@/lib/badges";
 import { applyCoinDelta } from "@/lib/coins/ledger";
-import { SESSION_COMPLETE_WINDOW_MS } from "@/lib/constants";
+import { minimumElapsedMs, SESSION_COMPLETE_WINDOW_MS } from "@/lib/constants";
 import { adminDb, requireConsentedUser } from "@/lib/firebase/admin";
 import { COLLECTIONS, type Session, type UserProfile } from "@/types/firestore";
 import { z } from "zod";
@@ -9,12 +9,18 @@ import { z } from "zod";
 const bodySchema = z.object({ sessionId: z.string().min(1) });
 
 /**
- * Marks a session complete and moves the coins.
+ * Records one person's confirmation that a session happened, and moves the
+ * coins once both have confirmed.
  *
- * Everything happens inside one transaction, and `settledAt` is both checked
- * and written inside it. Two taps on the Complete button, or a retry after a
- * dropped connection, cannot pay the teacher twice — the second attempt reads
- * a non-null `settledAt` and stops.
+ * Two rules keep this from being a free coin button:
+ *
+ * 1. Both people must confirm. A teacher alone cannot mark their own session
+ *    complete and pay themselves — the learner has to agree it happened.
+ * 2. Most of the booked time has to have actually passed. Otherwise a pair
+ *    could book an hour, join, leave after a minute, and both confirm.
+ *
+ * The transfer itself still happens in one transaction guarded by `settledAt`,
+ * so a double tap or a retry after a dropped connection cannot pay twice.
  */
 export async function POST(request: Request) {
   try {
@@ -30,7 +36,10 @@ export async function POST(request: Request) {
 
       const session = { ...snap.data(), id: snap.id } as Session;
 
-      if (session.teacherId !== user.uid && session.learnerId !== user.uid) {
+      const isTeacher = session.teacherId === user.uid;
+      const isLearner = session.learnerId === user.uid;
+
+      if (!isTeacher && !isLearner) {
         throw new HandledError("You weren't part of this session.", 403);
       }
       if (session.status !== "accepted") {
@@ -39,14 +48,38 @@ export async function POST(request: Request) {
       if (session.settledAt !== null) {
         throw new HandledError("This session has already been completed.", 409);
       }
-      if (Date.now() < session.scheduledAt) {
-        throw new HandledError("You can mark this complete once it has started.", 409);
+
+      const now = Date.now();
+      const required = minimumElapsedMs(session.durationMins);
+
+      if (now < session.scheduledAt + required) {
+        const minutesLeft = Math.ceil((session.scheduledAt + required - now) / 60000);
+        throw new HandledError(
+          `Too early. A ${session.durationMins}-minute session can be confirmed after ${Math.round(required / 60000)} minutes — about ${minutesLeft} more to go.`,
+          409,
+        );
       }
-      if (Date.now() > session.scheduledAt + SESSION_COMPLETE_WINDOW_MS) {
+      if (now > session.scheduledAt + SESSION_COMPLETE_WINDOW_MS) {
         throw new HandledError(
           "This session is too old to complete. Ask an admin if it needs sorting out.",
           409,
         );
+      }
+
+      // Record this person's confirmation, then see whether that completes the pair.
+      const teacherConfirmedAt = isTeacher
+        ? (session.teacherConfirmedAt ?? now)
+        : session.teacherConfirmedAt;
+      const learnerConfirmedAt = isLearner
+        ? (session.learnerConfirmedAt ?? now)
+        : session.learnerConfirmedAt;
+
+      if (teacherConfirmedAt === null || learnerConfirmedAt === null) {
+        tx.update(sessionRef, { teacherConfirmedAt, learnerConfirmedAt, updatedAt: now });
+        return {
+          settled: false,
+          waitingOn: teacherConfirmedAt === null ? "teacher" : "learner",
+        } as const;
       }
 
       const teacherRef = db.collection(COLLECTIONS.users).doc(session.teacherId);
@@ -69,8 +102,6 @@ export async function POST(request: Request) {
           402,
         );
       }
-
-      const now = Date.now();
 
       applyCoinDelta(tx, {
         userId: learner.uid,
@@ -98,6 +129,8 @@ export async function POST(request: Request) {
 
       tx.update(sessionRef, {
         status: "completed",
+        teacherConfirmedAt,
+        learnerConfirmedAt,
         settledAt: now,
         updatedAt: now,
       });
@@ -129,8 +162,9 @@ export async function POST(request: Request) {
       }
 
       return {
-        earned: session.teacherId === user.uid ? session.coinAmount : -session.coinAmount,
-      };
+        settled: true,
+        earned: isTeacher ? session.coinAmount : -session.coinAmount,
+      } as const;
     });
 
     return ok(result);

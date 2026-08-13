@@ -161,6 +161,13 @@ export interface Session {
   roomId: string;
   coinAmount: number;
   note: string;
+  /**
+   * Both people have to confirm the session happened before any coins move.
+   * One person clicking alone is not enough — otherwise the teacher could book
+   * a friend, leave after a minute, and pay themselves.
+   */
+  teacherConfirmedAt: number | null;
+  learnerConfirmedAt: number | null;
   /** Set once the coin transfer has run, so it can never run twice. */
   settledAt: number | null;
   createdAt: number;

@@ -1,6 +1,5 @@
 import { ChatThread } from "@/components/chat/chat-thread";
-import { BlockButton } from "@/components/safety/block-button";
-import { ReportDialog } from "@/components/safety/report-dialog";
+import { SafetyMenu } from "@/components/safety/safety-menu";
 import { PageContainer } from "@/components/shell/page";
 import { Avatar } from "@/components/ui/avatar";
 import { adminDb, requireConsentedUser } from "@/lib/firebase/admin";
@@ -54,6 +53,14 @@ export default async function ChatThreadPage({ params }: PageProps<"/chat/[threa
             </span>
           </span>
         </Link>
+
+        <SafetyMenu
+          targetUid={otherId}
+          targetName={otherName}
+          blocked={blocked.has(otherId)}
+          contentType="message"
+          contentRef={threadId}
+        />
       </div>
 
       <p className="mb-3 flex items-start gap-2 rounded-xl bg-surface-sunk px-3 py-2 text-xs text-muted">
@@ -69,20 +76,6 @@ export default async function ChatThreadPage({ params }: PageProps<"/chat/[threa
         otherName={otherName}
         blocked={blocked.has(otherId)}
       />
-
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <ReportDialog
-          reportedUserId={otherId}
-          reportedName={otherName}
-          contentType="message"
-          contentRef={threadId}
-        />
-        <BlockButton
-          targetUid={otherId}
-          targetName={otherName}
-          initiallyBlocked={blocked.has(otherId)}
-        />
-      </div>
     </PageContainer>
   );
 }
