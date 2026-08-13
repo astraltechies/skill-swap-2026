@@ -17,5 +17,8 @@
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), interest-cohort=(), payment=(), usb=()"
+    # Camera/mic name meet.jit.si explicitly — their default allowlist is
+    # `self`, which does not reach a cross-origin iframe, so the video call
+    # would open silent and black. Keep in step with next.config.ts.
+    Permissions-Policy = "camera=(self \"https://meet.jit.si\"), microphone=(self \"https://meet.jit.si\"), display-capture=(self \"https://meet.jit.si\"), geolocation=(), interest-cohort=(), payment=(), usb=()"
     Strict-Transport-Security = "max-age=31536000; includeSubDomains"

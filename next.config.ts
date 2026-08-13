@@ -49,9 +49,23 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
             key: "Permissions-Policy",
-            // Camera and mic stay enabled for the video session; everything
-            // else a browser could expose is switched off.
-            value: "geolocation=(), interest-cohort=(), payment=(), usb=()",
+            /*
+             * Camera and microphone have to name the Jitsi origin explicitly.
+             * Their default allowlist is `self`, which does not cover a
+             * cross-origin iframe — so `allow="camera; microphone"` on the
+             * embed alone would be refused and the call would open with no
+             * video and no audio. Everything else a browser can expose stays
+             * switched off.
+             */
+            value: [
+              `camera=(self "https://${JITSI_DOMAIN}")`,
+              `microphone=(self "https://${JITSI_DOMAIN}")`,
+              `display-capture=(self "https://${JITSI_DOMAIN}")`,
+              "geolocation=()",
+              "interest-cohort=()",
+              "payment=()",
+              "usb=()",
+            ].join(", "),
           },
           {
             key: "Strict-Transport-Security",

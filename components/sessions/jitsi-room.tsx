@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Video } from "lucide-react";
+import { Loader2, Video } from "lucide-react";
 import { useState } from "react";
 
 /**
@@ -21,10 +21,20 @@ export function JitsiRoom({
   domain: string;
 }) {
   const [joined, setJoined] = useState(false);
+  const [ready, setReady] = useState(false);
 
+  /*
+   * Jitsi reads these from the URL hash.
+   *
+   * The prejoin screen is deliberately left on: it is where someone can turn
+   * their camera off *before* anyone sees them, which matters more here than
+   * saving a tap. Our own gate below is a separate thing — it stops the iframe
+   * loading at all until the student asks for it.
+   *
+   * Deep linking is off so a phone never tries to bounce the call into the
+   * Jitsi app, and the app promo banner is hidden for the same reason.
+   */
   const config = new URLSearchParams({
-    // Jitsi reads these from the hash; they pre-fill the name and skip the
-    // pre-join screen's noisier options.
     "userInfo.displayName": `"${displayName}"`,
     "config.prejoinPageEnabled": "true",
     "config.disableDeepLinking": "true",
@@ -49,11 +59,23 @@ export function JitsiRoom({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-line bg-black">
+    <div className="relative overflow-hidden rounded-2xl border border-line bg-black">
+      {/* Jitsi takes a few seconds to boot. Without this the student stares at
+          a black rectangle and reasonably assumes it has broken. */}
+      {!ready ? (
+        <div className="absolute inset-0 grid place-items-center bg-black text-white/70">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="size-6 animate-spin" aria-hidden />
+            <p className="text-sm">Connecting…</p>
+          </div>
+        </div>
+      ) : null}
+
       <iframe
         title="Video session"
         src={`https://${domain}/${roomId}#${config.toString()}`}
         allow="camera; microphone; fullscreen; display-capture; autoplay"
+        onLoad={() => setReady(true)}
         className="aspect-[3/4] w-full sm:aspect-video"
       />
     </div>
