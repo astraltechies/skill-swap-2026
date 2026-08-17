@@ -7,6 +7,22 @@ session runs on video inside the platform.
 
 Built for Hackathon 2026.
 
+**Live: [skill-swap-2026.netlify.app](https://skill-swap-2026.netlify.app)** — a real
+deployment with a real database, not a mockup.
+
+---
+
+## If you are here to evaluate it
+
+Four files carry most of the thinking, if you only want to read a few:
+
+| File | Why it matters |
+| --- | --- |
+| `lib/matching/score.ts` | The product's one opinion, in code: a two-way swap outranks a one-way match no matter what the ratings say. |
+| `app/api/sessions/complete/route.ts` | Both people must confirm, and most of the booked time must have passed, before coins move. Our own worst bug was here — one person could complete a 30-minute session after a minute and take the reward. |
+| `firestore.rules` | Deny-by-default. A student cannot write their own coin balance, rating or role, even on their own document. |
+| `lib/ai/fallback-chain.ts` | Three AI providers tried in order, because free tiers rate-limit and a one-provider chatbot dies mid-demo. |
+
 ---
 
 ## Getting it running
@@ -26,10 +42,14 @@ project and turn on:
 
 - **Authentication** → Email/Password, and Google
 - **Firestore Database**
-- **Storage**
 
-Stay on the free **Spark** plan. This project does not use Cloud Functions, so
-you never need to upgrade to Blaze or add a card.
+Stay on the free **Spark** plan. This project uses neither Cloud Functions nor
+Firebase Storage — both now require the paid Blaze plan — so you never need to
+add a card. Avatars fall back to initials, or to the photo already on a Google
+account.
+
+Once deployed, add your domain under **Authentication → Settings → Authorized
+domains**, or Google sign-in will fail with `auth/unauthorized-domain`.
 
 ### 3. Fill in your environment
 
@@ -89,7 +109,7 @@ npm run dev
 | `npm run lint`       | ESLint                                              |
 | `npm run seed`       | Skill catalogue and badges only — safe in prod      |
 | `npm run seed:demo`  | Catalogue plus demo students — development only     |
-| `npm run rules:deploy` | Push `firestore.rules` and `storage.rules`        |
+| `npm run rules:deploy` | Push `firestore.rules` and the indexes            |
 | `npm run emulators`  | Firebase emulator suite                             |
 
 ---
@@ -122,8 +142,11 @@ route handlers, which is where a forged or revoked cookie is rejected.
 - **`lib/coins/ledger.ts`** — every coin movement writes a balance and an
   immutable ledger row in the same transaction. Balances are never written
   anywhere else.
-- **`app/api/sessions/complete/route.ts`** — checks and sets `settledAt` inside
-  one transaction, so a double tap or a retry cannot pay a teacher twice.
+- **`app/api/sessions/complete/route.ts`** — both people have to confirm before
+  any coins move, and most of the booked time must have elapsed first. Without
+  those two rules the fastest way to earn was to book a friend, join, and leave
+  after a minute. `settledAt` is checked and set inside the same transaction, so
+  a double tap or a retry cannot pay a teacher twice.
 - **`lib/matching/score.ts`** — pure and dependency-free. A two-way swap always
   outranks a one-way match, whatever the raw score says.
 - **`lib/ai/fallback-chain.ts`** — tries Gemini, then Groq, then Mistral, with
@@ -148,9 +171,25 @@ The users are minors, so these are structural rather than cosmetic:
   writes straight to Firestore, so it still works when a server route is down.
 - **Every admin action is logged** to `adminActions` with who, what and why.
 
-Aligned with India's DPDP Act 2023 posture: verifiable guardian consent for
-children's data, no behavioural tracking, no ads, and no third-party analytics
-anywhere in the app.
+### Where this stands against the DPDP Act, 2023
+
+India's Digital Personal Data Protection Act asks for a guardian's consent for
+users under 18, forbids behavioural tracking and targeted advertising aimed at
+children, and expects data minimisation. Against that:
+
+- **Consent is recorded** — guardian name, email, timestamp and policy version,
+  in an append-only collection, and it gates booking and messaging in both the
+  UI and the rules.
+- **No tracking, no ads** — there is not one analytics, advertising or tracking
+  script in this repository. Nothing profiles a student's behaviour.
+- **Data minimisation** — display name, username, short bio, city. No phone
+  number, no address, no school name, no date of birth.
+
+**The gap, stated plainly:** the Act asks for consent that is *verifiable*. Ours
+is declarative — the guardian's details are recorded, but no confirmation email
+is sent to them. That is the first thing to add before any real public launch,
+and `consentRecords` is a separate collection specifically so it drops in
+without touching anything else.
 
 ---
 
