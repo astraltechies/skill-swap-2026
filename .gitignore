@@ -30,8 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — every real one stays out of the repo
 .env*
+# ...except the blank template, which the README tells you to copy. It was
+# being swallowed by the rule above, so a fresh clone had no way to know which
+# variables the app needs.
+!.env.local.example
 
 # vercel
 .vercel
